@@ -56,8 +56,8 @@
 namespace gpd {
 
     struct detect_params{
-        Eigen::Vector3d &direction; 
-        Eigen::Matrix3Xd &camera_position; 
+        Eigen::Vector3d direction; 
+        Eigen::Matrix3Xd camera_position; 
         std::vector<double> workspace; 
         bool approach_direction;
         double thresh_rad;
@@ -94,7 +94,7 @@ class GraspDetector {
    * \return list of grasps
    */
   std::vector<std::unique_ptr<candidate::Hand>> detectGrasps(
-      const util::Cloud &cloud, detect_params &detectParam);
+      util::Cloud &cloud, detect_params &detectParam, const Eigen::Matrix3Xd &camera_position);
 
   /**
    * \brief Preprocess the point cloud.

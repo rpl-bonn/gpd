@@ -329,7 +329,7 @@ std::vector<std::unique_ptr<candidate::Hand>> GraspDetector::detectGrasps(
   return clusters;
 }
 
-std::vector<std::unique_ptr<candidate::Hand>> GraspDetector::detectGrasps(const util::Cloud &cloud, detect_params &detectParam){
+std::vector<std::unique_ptr<candidate::Hand>> GraspDetector::detectGrasps(util::Cloud &cloud, detect_params &detectParam, const Eigen::Matrix3Xd &camera_position){
   double t0_total = omp_get_wtime();
   std::vector<std::unique_ptr<candidate::Hand>> hands_out;
 
@@ -341,8 +341,8 @@ std::vector<std::unique_ptr<candidate::Hand>> GraspDetector::detectGrasps(const 
     hands_out.resize(0);
     return hands_out;
   }
-  
-  // cloud.setViewPoints(detectParam.camera_position;);
+
+  cloud.setViewPoints(detectParam.camera_position);
 
   // Plot samples/indices.
   if (plot_samples_) {
