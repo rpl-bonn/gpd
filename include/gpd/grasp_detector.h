@@ -94,7 +94,7 @@ class GraspDetector {
    * \return list of grasps
    */
   std::vector<std::unique_ptr<candidate::Hand>> detectGrasps(
-      util::Cloud &cloud, detect_params &detectParam, const Eigen::Matrix3Xd &camera_position);
+      util::Cloud &cloud, detect_params &detectParam);
 
   /**
    * \brief Preprocess the point cloud.

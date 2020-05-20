@@ -329,7 +329,7 @@ std::vector<std::unique_ptr<candidate::Hand>> GraspDetector::detectGrasps(
   return clusters;
 }
 
-std::vector<std::unique_ptr<candidate::Hand>> GraspDetector::detectGrasps(util::Cloud &cloud, detect_params &detectParam, const Eigen::Matrix3Xd &camera_position){
+std::vector<std::unique_ptr<candidate::Hand>> GraspDetector::detectGrasps(util::Cloud &cloud, detect_params &detectParam){
   double t0_total = omp_get_wtime();
   std::vector<std::unique_ptr<candidate::Hand>> hands_out;
 
