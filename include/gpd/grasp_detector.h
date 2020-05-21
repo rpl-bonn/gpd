@@ -102,6 +102,7 @@ class GraspDetector {
    */
   void preprocessPointCloud(util::Cloud &cloud);
 
+  void preprocessPointCloud(util::Cloud &cloud, std::vector<double> workspace);
   /**
    * Filter grasps based on the robot's workspace.
    * \param hand_set_list list of grasp candidate sets
@@ -209,6 +210,8 @@ class GraspDetector {
                       const std::string &name) const;
 
   std::unique_ptr<candidate::CandidatesGenerator> candidates_generator_;
+  candidate::HandSearch::Parameters* hand_search_params_;
+  candidate::CandidatesGenerator::Parameters* generator_params_;
   std::unique_ptr<descriptor::ImageGenerator> image_generator_;
   std::unique_ptr<Clustering> clustering_;
   std::unique_ptr<util::Plot> plotter_;
