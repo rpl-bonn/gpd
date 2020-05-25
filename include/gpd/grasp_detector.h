@@ -210,8 +210,8 @@ class GraspDetector {
                       const std::string &name) const;
 
   std::unique_ptr<candidate::CandidatesGenerator> candidates_generator_;
-  candidate::HandSearch::Parameters* hand_search_params_;
-  candidate::CandidatesGenerator::Parameters* generator_params_;
+  candidate::CandidatesGenerator::Parameters temp_generator_params;
+  candidate::HandSearch::Parameters temp_hand_search_params;
   std::unique_ptr<descriptor::ImageGenerator> image_generator_;
   std::unique_ptr<Clustering> clustering_;
   std::unique_ptr<util::Plot> plotter_;

@@ -65,7 +65,6 @@ GraspDetector::GraspDetector(const std::string &config_filename) {
       config_file.getValueOfKey<int>("refine_normals_k", 0);
   generator_params.workspace_ =
       config_file.getValueOfKeyAsStdVectorDouble("workspace", "-1 1 -1 1 -1 1");
-  generator_params_ = &generator_params;
   
 
   candidate::HandSearch::Parameters hand_search_params;
@@ -88,7 +87,8 @@ GraspDetector::GraspDetector(const std::string &config_filename) {
       config_file.getValueOfKey<double>("friction_coeff", 20.0);
   hand_search_params.min_viable_ =
       config_file.getValueOfKey<int>("min_viable", 6);
-  hand_search_params_= &hand_search_params;
+  temp_generator_params = generator_params;
+  temp_hand_search_params= hand_search_params;
   candidates_generator_ = std::make_unique<candidate::CandidatesGenerator>(
       generator_params, hand_search_params);
 
@@ -480,11 +480,11 @@ void GraspDetector::preprocessPointCloud(util::Cloud &cloud) {
 }
 
 void GraspDetector::preprocessPointCloud(util::Cloud &cloud, std::vector<double> workspace) {
+  temp_generator_params.workspace_=workspace;
+  std::unique_ptr<candidate::CandidatesGenerator> temp_candidates_generator_ = std::make_unique<candidate::CandidatesGenerator>(
+      temp_generator_params, temp_hand_search_params);
 
-  generator_params_->workspace_ = workspace;
-  std::unique_ptr<candidate::CandidatesGenerator> candidates_generator_1 = std::make_unique<candidate::CandidatesGenerator>(
-      *generator_params_, *hand_search_params_);
-  candidates_generator_1->preprocessPointCloud(cloud);
+  temp_candidates_generator_->preprocessPointCloud(cloud);
 }
   
 
