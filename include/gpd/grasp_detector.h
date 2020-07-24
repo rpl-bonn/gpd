@@ -54,13 +54,25 @@
 #include <gpd/util/plot.h>
 
 namespace gpd {
-
+    /**
+     * @brief Struct of custom grasp detection parameters
+     * 
+     * approach_direction   : approach direction to filter grasp 
+     * camera_position      : position of the camera from which the cloud was taken
+     * workspace            : dimensions of a cube centered at origin of point cloud; to filter grasp candidates
+     * canFilterApproach    : turn filteing by appreach direction on/off
+     * canSegment           : turn segmentation on/off
+     * thresh_rad           : angle from appoach direction vector in radians, above which grasps are filtered out
+     * 
+     */
     struct detect_params{
-        Eigen::Vector3d direction; 
+        Eigen::Vector3d approach_direction; 
         Eigen::Matrix3Xd camera_position; 
         std::vector<double> workspace; 
-        bool approach_direction;
+        bool canFilterApproach;
+        bool canSegment;
         double thresh_rad;
+        std::string objectName;
     };
 
 /**

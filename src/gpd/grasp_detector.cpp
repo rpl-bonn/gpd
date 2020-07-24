@@ -390,9 +390,9 @@ std::vector<std::unique_ptr<candidate::Hand>> GraspDetector::detectGrasps(util::
                             "Filtered Grasps (Aperture, Workspace)", hand_geom);
   }
 
-   if (detectParam.approach_direction) {
+   if (detectParam.canFilterApproach) {
     hand_set_list_filtered =
-        filterGraspsDirection(hand_set_list_filtered, detectParam.direction, detectParam.thresh_rad);
+        filterGraspsDirection(hand_set_list_filtered, detectParam.approach_direction, detectParam.thresh_rad);
     if (plot_filtered_candidates_) {
       plotter_->plotFingers3D(hand_set_list_filtered, cloud.getCloudOriginal(),
                               "Filtered Grasps (Approach)", hand_geom);
