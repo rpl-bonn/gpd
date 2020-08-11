@@ -65,14 +65,14 @@ namespace gpd {
      * thresh_rad           : angle from appoach direction vector in radians, above which grasps are filtered out
      * 
      */
-    struct detect_params{
+    struct DetectParams{
         Eigen::Vector3d approach_direction; 
         Eigen::Matrix3Xd camera_position; 
         std::vector<double> workspace; 
-        bool canFilterApproach;
-        bool canSegment;
+        bool can_filter_approach;
+        bool can_segment;
         double thresh_rad;
-        std::string objectName;
+        std::string object_name;
     };
 
 /**
@@ -106,7 +106,7 @@ class GraspDetector {
    * \return list of grasps
    */
   std::vector<std::unique_ptr<candidate::Hand>> detectGrasps(
-      util::Cloud &cloud, detect_params &detectParam);
+      util::Cloud &cloud, DetectParams &detectParam);
 
   /**
    * \brief Preprocess the point cloud.
