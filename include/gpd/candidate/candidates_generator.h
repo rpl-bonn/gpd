@@ -126,6 +126,12 @@ class CandidatesGenerator {
   void setNumSamples(int num_samples) { params_.num_samples_ = num_samples; }
 
   /**
+   * \brief Set the workspace.
+   * \param workspace the custom workspace
+   */
+  void setWorkspace(std::vector<double>workspace) { params_.workspace_ = workspace; }
+
+  /**
    * \brief Return the hand search parameters.
    * \return the hand search parameters
    */

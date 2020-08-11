@@ -480,11 +480,8 @@ void GraspDetector::preprocessPointCloud(util::Cloud &cloud) {
 }
 
 void GraspDetector::preprocessPointCloud(util::Cloud &cloud, std::vector<double> workspace) {
-  temp_generator_params.workspace_=workspace;
-  std::unique_ptr<candidate::CandidatesGenerator> temp_candidates_generator_ = std::make_unique<candidate::CandidatesGenerator>(
-      temp_generator_params, temp_hand_search_params);
-
-  temp_candidates_generator_->preprocessPointCloud(cloud);
+  candidates_generator_->setWorkspace(workspace);
+  preprocessPointCloud(cloud);
 }
   
 
