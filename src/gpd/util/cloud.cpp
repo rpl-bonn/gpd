@@ -266,6 +266,83 @@ void Cloud::filterWorkspace(const std::vector<double> &workspace) {
   camera_source_ = camera_source;
 }
 
+void Cloud::filterWorkspace(const std::vector<double> &workspace, const Eigen::Affine3d& transform_camera2base) {
+  // Filter indices into the point cloud.
+  if (sample_indices_.size() > 0) {
+    std::vector<int> indices_to_keep;
+
+    for (int i = 0; i < sample_indices_.size(); i++) {
+      const pcl::PointXYZRGBA &p = cloud_processed_->points[sample_indices_[i]];
+
+      Eigen::Vector3d p_camera(p.x, p.y, p.z);
+      Eigen::Vector3d p_base = transform_camera2base * p_camera;
+
+      if (p_base[0] > workspace[0] && p_base[0] < workspace[1] && 
+          p_base[1] > workspace[2] && p_base[1] < workspace[3] && 
+          p_base[2] > workspace[4] && p_base[2] < workspace[5]) {
+        indices_to_keep.push_back(i);
+      }
+    }
+
+    sample_indices_ = indices_to_keep;
+    std::cout << sample_indices_.size()
+              << " sample indices left after workspace filtering \n";
+  }
+
+  // Filter (x,y,z)-samples.
+  if (samples_.cols() > 0) {
+    std::vector<int> indices_to_keep;
+
+    for (int i = 0; i < samples_.cols(); i++) {
+
+      Eigen::Vector3d sample_camera(samples_(0, i), samples_(1, i), samples_(2, i));
+      Eigen::Vector3d sample_base = transform_camera2base * sample_camera;
+
+      if (sample_base[0] > workspace[0] && sample_base[0] < workspace[1] &&
+          sample_base[1] > workspace[2] && sample_base[1] < workspace[3] &&
+          sample_base[2] > workspace[4] && sample_base[2] < workspace[5]) {
+        indices_to_keep.push_back(i);
+      }
+    }
+
+    samples_ = EigenUtils::sliceMatrix(samples_, indices_to_keep);
+    std::cout << samples_.cols()
+              << " samples left after workspace filtering \n";
+  }
+
+  // Filter the point cloud.
+  std::vector<int> indices;
+  for (int i = 0; i < cloud_processed_->size(); i++) {
+    const pcl::PointXYZRGBA &p = cloud_processed_->points[i];
+
+    Eigen::Vector3d p_camera(p.x, p.y, p.z);
+    Eigen::Vector3d p_base = transform_camera2base * p_camera;
+
+    if (p_base[0] > workspace[0] && p_base[0] < workspace[1] && 
+        p_base[1] > workspace[2] && p_base[1] < workspace[3] && 
+        p_base[2] > workspace[4] && p_base[2] < workspace[5]) {
+      indices.push_back(i);
+    }
+  }
+
+  Eigen::MatrixXi camera_source(camera_source_.rows(), indices.size());
+  PointCloudRGB::Ptr cloud(new PointCloudRGB);
+  cloud->points.resize(indices.size());
+  for (int i = 0; i < indices.size(); i++) {
+    camera_source.col(i) = camera_source_.col(indices[i]);
+    cloud->points[i] = cloud_processed_->points[indices[i]];
+  }
+  if (normals_.cols() > 0) {
+    Eigen::Matrix3Xd normals(3, indices.size());
+    for (int i = 0; i < indices.size(); i++) {
+      normals.col(i) = normals_.col(indices[i]);
+    }
+    normals_ = normals;
+  }
+  cloud_processed_ = cloud;
+  camera_source_ = camera_source;
+}
+
 void Cloud::filterSamples(const std::vector<double> &workspace) {
   std::vector<int> indices;
   for (int i = 0; i < samples_.size(); i++) {

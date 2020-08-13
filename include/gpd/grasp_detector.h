@@ -44,26 +44,42 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 
-#include <gpd/candidate/candidates_generator.h>
-#include <gpd/candidate/hand_geometry.h>
-#include <gpd/candidate/hand_set.h>
-#include <gpd/clustering.h>
-#include <gpd/descriptor/image_generator.h>
-#include <gpd/net/classifier.h>
-#include <gpd/util/config_file.h>
-#include <gpd/util/plot.h>
+==== BASE ====
+// ROS
+#include <ros/ros.h>
 
 namespace gpd {
-
-    struct detect_params{
-        Eigen::Vector3d direction; 
+    /**
+     * @brief Struct of custom grasp detection parameters
+     * 
+     * approach_direction       : approach direction to filter grasp: camera frame 
+     * camera_position          : position of the camera from which the cloud was taken: camera frame
+     * transform_camera2base    : transform from camera frame to base frame 
+     * workspace                : dimensions of a cube centered at origin of point cloud; to filter grasp candidates: base frame
+     * can_filter_approach      : switch for filtering by approach direction
+     * can_segment              : switch for segmentation
+     * thresh_rad               : angle from the set approach_direction vector in radians, above which grasps are filtered out
+     * 
+     */
+    struct DetectParams{
+        Eigen::Vector3d approach_direction; 
         Eigen::Matrix3Xd camera_position; 
+        Eigen::Affine3d transform_camera2base;
         std::vector<double> workspace; 
-        bool approach_direction;
+        bool can_filter_approach;
+        bool can_segment;
         double thresh_rad;
+        std::string object_name;
     };
 
-/**
+// Custom
+#include "gpd/classifier.h"
+#include "../gpd/clustering.h"
+#include "../gpd/learning.h"
+
+
+/** GraspDetector class
+==== BASE ====
  *
  * \brief Detect grasp poses in point clouds.
  *
@@ -94,24 +110,42 @@ class GraspDetector {
    * \return list of grasps
    */
   std::vector<std::unique_ptr<candidate::Hand>> detectGrasps(
-      util::Cloud &cloud, detect_params &detectParam, const Eigen::Matrix3Xd &camera_position);
+      util::Cloud &cloud, DetectParams &detectParam);
 
   /**
    * \brief Preprocess the point cloud.
    * \param cloud_cam the point cloud
    */
   void preprocessPointCloud(util::Cloud &cloud);
-
+  
+  /**
+   * \brief Preprocess the point cloud.
+   * \param workspace the candidate generation and grasps workspace: in base frame
+   * \param cloud_cam the point cloud
+   * \param transform_camera2base transform from camera to base frame
+   */
+  void preprocessPointCloud(util::Cloud &cloud, const std::vector<double> workspace, const Eigen::Affine3d& transform_camera2base);
+  
   /**
    * Filter grasps based on the robot's workspace.
    * \param hand_set_list list of grasp candidate sets
-   * \param workspace the robot's workspace as a 3D cube, centered at the origin
-   * \param thresh_rad the angle in radians above which grasps are filtered
+   * \param workspace the robot's workspace as a 3D cube, centered at the origin: camera frame
    * \return list of grasps after filtering
    */
   std::vector<std::unique_ptr<candidate::HandSet>> filterGraspsWorkspace(
       std::vector<std::unique_ptr<candidate::HandSet>> &hand_set_list,
       const std::vector<double> &workspace) const;
+  
+  /**
+   * Filter grasps based on the robot's workspace.
+   * \param hand_set_list list of grasp candidate sets
+   * \param workspace the robot's workspace as a 3D cube, centered at the origin: in base frame
+   * \param transform_camera2base the transform from camera to base frame
+   * \return list of grasps after filtering
+   */
+  std::vector<std::unique_ptr<candidate::HandSet>> filterGraspsWorkspace(
+    std::vector<std::unique_ptr<candidate::HandSet>> &hand_set_list,
+    const std::vector<double> &workspace, const Eigen::Affine3d& transform_camera2base) const;
 
   /**
    * Filter grasps based on their approach direction.
@@ -209,6 +243,8 @@ class GraspDetector {
                       const std::string &name) const;
 
   std::unique_ptr<candidate::CandidatesGenerator> candidates_generator_;
+  candidate::CandidatesGenerator::Parameters temp_generator_params;
+  candidate::HandSearch::Parameters temp_hand_search_params;
   std::unique_ptr<descriptor::ImageGenerator> image_generator_;
   std::unique_ptr<Clustering> clustering_;
   std::unique_ptr<util::Plot> plotter_;

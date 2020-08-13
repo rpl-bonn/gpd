@@ -14,23 +14,26 @@ link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
 # OpenCV
-find_package(OpenCV REQUIRED)
+find_package(OpenCV 3.2 REQUIRED)
 #find_package(OpenCV REQUIRED PATHS /usr/local NO_DEFAULT_PATH)
 
 ## Set compiler optimization flags
 # set(CMAKE_CXX_FLAGS "-O3 -fopenmp -fPIC -Wno-deprecated -Wenum-compare -std=c++14")
-set(CMAKE_CXX_FLAGS "-O3 -fopenmp -fPIC -Wno-deprecated -Wenum-compare -Wno-ignored-attributes -std=c++14")
+# set(CMAKE_CXX_FLAGS "-O3 -fopenmp -fPIC -Wno-deprecated -Wenum-compare -Wno-ignored-attributes -std=c++14")
+set(CMAKE_CXX_FLAGS "-fopenmp -fPIC -Wno-deprecated -Wenum-compare -Wno-ignored-attributes -std=c++14")
 # set(CMAKE_CXX_FLAGS "-O3 -fopenmp -fPIC -Wno-deprecated -Wenum-compare")
 # set(CMAKE_CXX_FLAGS "-O3 -fopenmp -march=native -mfpmath=sse -funroll-loops -fPIC -Wno-deprecated -Wenum-compare") # no improvement
 # set(CMAKE_CXX_FLAGS "-frename-registers -Ofast -march=native -fopenmp -fPIC -Wno-deprecated -Wenum-compare") # no improvement
 
 ## Specify additional locations of header files
+find_library(GENERATOR_LIB grasp_candidates_generator)
 include_directories(include ${PCL_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 
 # Classifier depends on what libraries are installed.
 option(USE_OPENVINO "use classifier based on OpenVINO toolkit" OFF)
 option(USE_CAFFE "use classifier based on Caffe framework" OFF)
 option(USE_OPENCV "use classifier based on OpenCV framework" OFF)
+
 if(USE_OPENVINO STREQUAL "ON")
   find_package(InferenceEngine 1.0)
   if (NOT InferenceEngine_FOUND)
