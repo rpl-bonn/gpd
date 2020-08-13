@@ -380,7 +380,7 @@ std::vector<std::unique_ptr<candidate::Hand>> GraspDetector::detectGrasps(util::
   // 2. Filter the candidates.
   double t0_filter = omp_get_wtime();
   std::vector<std::unique_ptr<candidate::HandSet>> hand_set_list_filtered =
-      filterGraspsWorkspace(hand_set_list, detectParam.workspace);
+      filterGraspsWorkspace(hand_set_list, detectParam.workspace, detectParam.transform_camera2base);
   if (hand_set_list_filtered.size() == 0) {
     return hands_out;
   }
@@ -479,12 +479,21 @@ void GraspDetector::preprocessPointCloud(util::Cloud &cloud) {
   candidates_generator_->preprocessPointCloud(cloud);
 }
 
-void GraspDetector::preprocessPointCloud(util::Cloud &cloud, std::vector<double> workspace) {
-  candidates_generator_->setWorkspace(workspace);
-  preprocessPointCloud(cloud);
+void GraspDetector::preprocessPointCloud(util::Cloud &cloud, const std::vector<double> workspace, const Eigen::Affine3d& transform_camera2base) {
+  
+  std::vector<double> workspace_generator(workspace.size());
+
+  // Candidates generator workspace best be bigger than the grasps_workspace; see eigen_params.cfg for explanation
+  float scale = 1.2;  // random scale, to ensure candidate_generator 
+  for(short i = 0; i < workspace.size(); i++)
+  {
+    workspace_generator[i] = workspace[i] * scale;
+  }
+
+  candidates_generator_->setWorkspace(workspace_generator);
+  candidates_generator_->preprocessPointCloud(cloud, transform_camera2base);
 }
   
-
 std::vector<std::unique_ptr<candidate::HandSet>>
 GraspDetector::filterGraspsWorkspace(
     std::vector<std::unique_ptr<candidate::HandSet>> &hand_set_list,
@@ -517,6 +526,81 @@ GraspDetector::filterGraspsWorkspace(
           left_bottom + hand_geometry.depth_ * hands[j]->getApproach();
       Eigen::Vector3d approach =
           hands[j]->getPosition() - 0.05 * hands[j]->getApproach();
+      Eigen::VectorXd x(5), y(5), z(5);
+      x << left_bottom(0), right_bottom(0), left_top(0), right_top(0),
+          approach(0);
+      y << left_bottom(1), right_bottom(1), left_top(1), right_top(1),
+          approach(1);
+      z << left_bottom(2), right_bottom(2), left_top(2), right_top(2),
+          approach(2);
+
+      // Ensure the object fits into the hand and avoid grasps outside the
+      // workspace.
+      if (hands[j]->getGraspWidth() >= min_aperture_ &&
+          hands[j]->getGraspWidth() <= max_aperture_ &&
+          x.minCoeff() >= workspace[0] && x.maxCoeff() <= workspace[1] &&
+          y.minCoeff() >= workspace[2] && y.maxCoeff() <= workspace[3] &&
+          z.minCoeff() >= workspace[4] && z.maxCoeff() <= workspace[5]) {
+        is_valid(j) = true;
+        remaining++;
+      } else {
+        is_valid(j) = false;
+      }
+    }
+
+    if (is_valid.any()) {
+      hand_set_list_out.push_back(std::move(hand_set_list[i]));
+      hand_set_list_out[hand_set_list_out.size() - 1]->setIsValid(is_valid);
+    }
+  }
+
+  printf("Number of grasp candidates within workspace and gripper width: %d\n",
+         remaining);
+
+  return hand_set_list_out;
+}
+
+std::vector<std::unique_ptr<candidate::HandSet>>
+GraspDetector::filterGraspsWorkspace(
+    std::vector<std::unique_ptr<candidate::HandSet>> &hand_set_list,
+    const std::vector<double> &workspace, const Eigen::Affine3d& transform_camera2base) const {
+  int remaining = 0;
+  std::vector<std::unique_ptr<candidate::HandSet>> hand_set_list_out;
+  printf("Filtering grasps outside of workspace in base frame ...\n");
+
+  const candidate::HandGeometry &hand_geometry =
+      candidates_generator_->getHandSearchParams().hand_geometry_;
+
+  for (int i = 0; i < hand_set_list.size(); i++) {
+    const std::vector<std::unique_ptr<candidate::Hand>> &hands =
+        hand_set_list[i]->getHands();
+    Eigen::Array<bool, 1, Eigen::Dynamic> is_valid =
+        hand_set_list[i]->getIsValid();
+
+    for (int j = 0; j < hands.size(); j++) {
+      if (!is_valid(j)) {
+        continue;
+      }
+
+      // https://eigen.tuxfamily.org/dox/group__TutorialGeometry.html#TutorialGeoTransform
+      // Handle point and vector transforms differently
+      Eigen::Vector3d hand_position_baseframe = transform_camera2base * hands[j]->getPosition();        // point
+
+      Eigen::Matrix3d normalMatrix = transform_camera2base.linear().inverse().transpose();
+      Eigen::Vector3d hand_binormal_baseframe = (normalMatrix * hands[j]->getBinormal()).normalized();  // vector
+      Eigen::Vector3d hand_approach_baseframe = (normalMatrix * hands[j]->getApproach()).normalized();  // vector
+
+      double half_width = 0.5 * hand_geometry.outer_diameter_;
+      Eigen::Vector3d left_bottom =
+          hand_position_baseframe + half_width * hand_binormal_baseframe;
+      Eigen::Vector3d right_bottom =
+          hand_position_baseframe - half_width * hand_binormal_baseframe;
+      Eigen::Vector3d left_top =
+          left_bottom + hand_geometry.depth_ * hand_approach_baseframe;
+      Eigen::Vector3d right_top =
+          left_bottom + hand_geometry.depth_ * hand_approach_baseframe;
+      Eigen::Vector3d approach =
+          hand_position_baseframe - 0.05 * hand_approach_baseframe;
       Eigen::VectorXd x(5), y(5), z(5);
       x << left_bottom(0), right_bottom(0), left_top(0), right_top(0),
           approach(0);

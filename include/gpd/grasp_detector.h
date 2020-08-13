@@ -57,17 +57,19 @@ namespace gpd {
     /**
      * @brief Struct of custom grasp detection parameters
      * 
-     * approach_direction   : approach direction to filter grasp 
-     * camera_position      : position of the camera from which the cloud was taken
-     * workspace            : dimensions of a cube centered at origin of point cloud; to filter grasp candidates
-     * canFilterApproach    : turn filteing by appreach direction on/off
-     * canSegment           : turn segmentation on/off
-     * thresh_rad           : angle from appoach direction vector in radians, above which grasps are filtered out
+     * approach_direction       : approach direction to filter grasp: camera frame 
+     * camera_position          : position of the camera from which the cloud was taken: camera frame
+     * transform_camera2base    : transform from camera frame to base frame 
+     * workspace                : dimensions of a cube centered at origin of point cloud; to filter grasp candidates: base frame
+     * can_filter_approach      : switch for filtering by approach direction
+     * can_segment              : switch for segmentation
+     * thresh_rad               : angle from the set approach_direction vector in radians, above which grasps are filtered out
      * 
      */
     struct DetectParams{
         Eigen::Vector3d approach_direction; 
         Eigen::Matrix3Xd camera_position; 
+        Eigen::Affine3d transform_camera2base;
         std::vector<double> workspace; 
         bool can_filter_approach;
         bool can_segment;
@@ -113,18 +115,35 @@ class GraspDetector {
    * \param cloud_cam the point cloud
    */
   void preprocessPointCloud(util::Cloud &cloud);
-
-  void preprocessPointCloud(util::Cloud &cloud, std::vector<double> workspace);
+  
+  /**
+   * \brief Preprocess the point cloud.
+   * \param workspace the candidate generation and grasps workspace: in base frame
+   * \param cloud_cam the point cloud
+   * \param transform_camera2base transform from camera to base frame
+   */
+  void preprocessPointCloud(util::Cloud &cloud, const std::vector<double> workspace, const Eigen::Affine3d& transform_camera2base);
+  
   /**
    * Filter grasps based on the robot's workspace.
    * \param hand_set_list list of grasp candidate sets
-   * \param workspace the robot's workspace as a 3D cube, centered at the origin
-   * \param thresh_rad the angle in radians above which grasps are filtered
+   * \param workspace the robot's workspace as a 3D cube, centered at the origin: camera frame
    * \return list of grasps after filtering
    */
   std::vector<std::unique_ptr<candidate::HandSet>> filterGraspsWorkspace(
       std::vector<std::unique_ptr<candidate::HandSet>> &hand_set_list,
       const std::vector<double> &workspace) const;
+  
+  /**
+   * Filter grasps based on the robot's workspace.
+   * \param hand_set_list list of grasp candidate sets
+   * \param workspace the robot's workspace as a 3D cube, centered at the origin: in base frame
+   * \param transform_camera2base the transform from camera to base frame
+   * \return list of grasps after filtering
+   */
+  std::vector<std::unique_ptr<candidate::HandSet>> filterGraspsWorkspace(
+    std::vector<std::unique_ptr<candidate::HandSet>> &hand_set_list,
+    const std::vector<double> &workspace, const Eigen::Affine3d& transform_camera2base) const;
 
   /**
    * Filter grasps based on their approach direction.

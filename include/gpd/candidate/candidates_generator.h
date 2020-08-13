@@ -96,6 +96,13 @@ class CandidatesGenerator {
   void preprocessPointCloud(util::Cloud &cloud);
 
   /**
+   * \brief Preprocess the point cloud, filter with workspace set in the base frame
+   * \param cloud_cam the point cloud
+   * \param transform_camera2base the transform from camera to base frame
+   */
+  void preprocessPointCloud(util::Cloud &cloud, const Eigen::Affine3d& transform_camera2base);
+
+  /**
    * \brief Generate grasp candidates given a point cloud.
    * \param cloud_cam the point cloud
    * \return list of grasp candidates

@@ -204,6 +204,14 @@ class Cloud {
   void filterWorkspace(const std::vector<double> &workspace);
 
   /**
+   * \brief Filter out points in the point cloud that lie outside the workspace set in base frame
+   * dimensions. 
+   * \param[in] workspace a 6-D vector containing the workspace limits in the base frame: [minX,
+   * maxX, minY, maxY, minZ, maxZ]
+   */
+  void filterWorkspace(const std::vector<double> &workspace, const Eigen::Affine3d& transform_camera2base);
+
+  /**
    * \brief Filter out samples that lie outside the workspace dimensions.
    * \param[in] workspace a 6-D vector containing the workspace limits: [minX,
    * maxX, minY, maxY, minZ, maxZ]
