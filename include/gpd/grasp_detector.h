@@ -44,9 +44,14 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 
-==== BASE ====
-// ROS
-#include <ros/ros.h>
+#include <gpd/candidate/candidates_generator.h>
+#include <gpd/candidate/hand_geometry.h>
+#include <gpd/candidate/hand_set.h>
+#include <gpd/clustering.h>
+#include <gpd/descriptor/image_generator.h>
+#include <gpd/net/classifier.h>
+#include <gpd/util/config_file.h>
+#include <gpd/util/plot.h>
 
 namespace gpd {
     /**
@@ -72,14 +77,7 @@ namespace gpd {
         std::string object_name;
     };
 
-// Custom
-#include "gpd/classifier.h"
-#include "../gpd/clustering.h"
-#include "../gpd/learning.h"
-
-
-/** GraspDetector class
-==== BASE ====
+/**
  *
  * \brief Detect grasp poses in point clouds.
  *

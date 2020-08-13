@@ -1,5 +1,7 @@
 #include <gpd/grasp_detector.h>
 
+
+
 namespace gpd {
 
 GraspDetector::GraspDetector(const std::string &config_filename) {
@@ -326,7 +328,6 @@ std::vector<std::unique_ptr<candidate::Hand>> GraspDetector::detectGrasps(
     plotter_->plotFingers3D(clusters, cloud.getCloudOriginal(),
                             "Selected Grasps", hand_geom, false);
   }
-  double t_classify = omp_get_wtime() - t0_classify;
 
   return clusters;
 }
@@ -354,14 +355,12 @@ std::vector<std::unique_ptr<candidate::Hand>> GraspDetector::detectGrasps(util::
       plotter_->plotSamples(cloud.getSampleIndices(),
                             cloud.getCloudProcessed());
     }
-==== BASE ====
   }
 
   if (plot_normals_) {
     std::cout << "Plotting normals for different camera sources\n";
     plotter_->plotNormals(cloud);
   }
-==== BASE ====
 
   // 1. Generate grasp candidates.
   double t0_candidates = omp_get_wtime();

@@ -26,7 +26,6 @@ set(CMAKE_CXX_FLAGS "-fopenmp -fPIC -Wno-deprecated -Wenum-compare -Wno-ignored-
 # set(CMAKE_CXX_FLAGS "-frename-registers -Ofast -march=native -fopenmp -fPIC -Wno-deprecated -Wenum-compare") # no improvement
 
 ## Specify additional locations of header files
-find_library(GENERATOR_LIB grasp_candidates_generator)
 include_directories(include ${PCL_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 
 # Classifier depends on what libraries are installed.
