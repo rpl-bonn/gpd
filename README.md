@@ -1,3 +1,8 @@
+# Updates
+
+This is a fork. For our purpose, we just want to replace AnyGrasp, and test this out. Thus, we have a Dockerfile, which uses this repo.
+
+
 # Grasp Pose Detection (GPD)
 
 * [Author's website](http://www.ccs.neu.edu/home/atp/)
