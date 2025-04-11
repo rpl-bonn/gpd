@@ -18,13 +18,15 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Change these paths if necessary.
-# Assume the GPD executable (e.g., "detect_grasps") is built in the same directory as app.py.
-EXECUTABLE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "detect_grasps")
-# Configuration file path for GPD (e.g., located under a "cfg" subdirectory)
-CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cfg", "eigen_params.cfg")
+# Path to the GPD executable
+WORKSPACE_PATH = os.path.dirname(os.path.abspath(__file__))
+EXECUTABLE = os.path.join(WORKSPACE_PATH, "build", "detect_grasps")
+# Configuration file path for GPD
+CONFIG_FILE = os.path.join(WORKSPACE_PATH, "cfg", "eigen_params.cfg")
+
 if not os.path.exists(EXECUTABLE):
-    print("not found")
     logger.error("GPD executable not found at {}".format(EXECUTABLE))
+    logger.warning("The executable needs to be built. Run 'mkdir build && cd build && cmake .. && make' in the GPD directory")
 if not os.path.exists(CONFIG_FILE):
     logger.error("GPD config file not found at {}".format(CONFIG_FILE))
 else:
