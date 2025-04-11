@@ -117,9 +117,8 @@ def detect_grasps():
     # Here we use the executable, CONFIG_FILE, and the saved point cloud file.
     # If your GPD executable supports passing extra parameters, add them to the command list.
     command = [EXECUTABLE, CONFIG_FILE, input_file_path]
-    # Optionally, you could extend the command by appending extra parameters.
-    # For example, if your executable accepts them as command-line arguments:
-    # command.extend([str(rotation_resolution), str(top_n), str(n_best)])
+    # Extend command with additional parameters
+    command.extend([str(rotation_resolution), str(top_n), str(n_best)])
     
     logger.info("Executing command: {}".format(' '.join(command)))
     
