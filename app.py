@@ -104,14 +104,14 @@ def detect_grasps():
     if not os.path.exists(hand_geometry_dest):
         with open(HAND_GEOMETRY_CFG, 'r') as src, open(hand_geometry_dest, 'w') as dst:
             dst.write(src.read())
-        logger.debug(f"Copied hand geometry config to {hand_geometry_dest}")
+        logger.debug("Copied hand geometry config to {}".format(hand_geometry_dest))
             
     # Copy or link image geometry config
     image_geometry_dest = os.path.join(expected_cfg_dir, "image_geometry_15channels.cfg")
     if not os.path.exists(image_geometry_dest):
         with open(IMAGE_GEOMETRY_CFG, 'r') as src, open(image_geometry_dest, 'w') as dst:
             dst.write(src.read())
-        logger.debug(f"Copied image geometry config to {image_geometry_dest}")
+        logger.debug("Copied image geometry config to {}".format(image_geometry_dest))
     
     # Build the command.
     # Here we use the executable, CONFIG_FILE, and the saved point cloud file.
