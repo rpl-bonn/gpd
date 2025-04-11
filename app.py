@@ -20,9 +20,9 @@ app = Flask(__name__)
 # Change these paths if necessary.
 # Path to the GPD executable
 WORKSPACE_PATH = os.path.dirname(os.path.abspath(__file__))
-EXECUTABLE = os.path.join(WORKSPACE_PATH, "build", "detect_grasps")
+EXECUTABLE = os.path.join(WORKSPACE_PATH, "opt/gpd/build", "detect_grasps")
 # Configuration file path for GPD
-CONFIG_FILE = os.path.join(WORKSPACE_PATH, "cfg", "eigen_params.cfg")
+CONFIG_FILE = os.path.join(WORKSPACE_PATH, "opt/gpd/cfg", "eigen_params.cfg")
 
 if not os.path.exists(EXECUTABLE):
     logger.error("GPD executable not found at {}".format(EXECUTABLE))
