@@ -20,10 +20,13 @@ app = Flask(__name__)
 # Change these paths if necessary.
 # Path to the GPD executable
 # WORKSPACE_PATH = os.path.dirname(os.path.abspath(__file__))
-WORKSPACE_PATH = "opt/gpd"
+WORKSPACE_PATH = os.path.abspath("opt/gpd")
 EXECUTABLE = os.path.join(WORKSPACE_PATH, "build", "detect_grasps")
-# Configuration file path for GPD
+# Configuration file paths for GPD
 CONFIG_FILE = os.path.join(WORKSPACE_PATH, "cfg", "eigen_params.cfg")
+# Additional required config files
+HAND_GEOMETRY_CFG = os.path.join(WORKSPACE_PATH, "cfg", "hand_geometry.cfg")
+IMAGE_GEOMETRY_CFG = os.path.join(WORKSPACE_PATH, "cfg", "image_geometry_15channels.cfg")
 
 if not os.path.exists(EXECUTABLE):
     logger.error("GPD executable not found at {}".format(EXECUTABLE))
@@ -82,6 +85,34 @@ def detect_grasps():
         "n_best": n_best
     }
 
+    # Check additional config files
+    if not os.path.exists(HAND_GEOMETRY_CFG):
+        logger.error("Hand geometry config file not found: {}".format(HAND_GEOMETRY_CFG))
+        return jsonify({"error": "Hand geometry config file not found", "path": HAND_GEOMETRY_CFG}), 500
+        
+    if not os.path.exists(IMAGE_GEOMETRY_CFG):
+        logger.error("Image geometry config file not found: {}".format(IMAGE_GEOMETRY_CFG))
+        return jsonify({"error": "Image geometry config file not found", "path": IMAGE_GEOMETRY_CFG}), 500
+    
+    # Create symbolic links or copy config files to expected locations
+    gpd_dir = os.path.dirname(EXECUTABLE)
+    expected_cfg_dir = os.path.join(gpd_dir, "..", "cfg")
+    os.makedirs(expected_cfg_dir, exist_ok=True)
+    
+    # Copy or link hand geometry config
+    hand_geometry_dest = os.path.join(expected_cfg_dir, "hand_geometry.cfg")
+    if not os.path.exists(hand_geometry_dest):
+        with open(HAND_GEOMETRY_CFG, 'r') as src, open(hand_geometry_dest, 'w') as dst:
+            dst.write(src.read())
+        logger.debug(f"Copied hand geometry config to {hand_geometry_dest}")
+            
+    # Copy or link image geometry config
+    image_geometry_dest = os.path.join(expected_cfg_dir, "image_geometry_15channels.cfg")
+    if not os.path.exists(image_geometry_dest):
+        with open(IMAGE_GEOMETRY_CFG, 'r') as src, open(image_geometry_dest, 'w') as dst:
+            dst.write(src.read())
+        logger.debug(f"Copied image geometry config to {image_geometry_dest}")
+    
     # Build the command.
     # Here we use the executable, CONFIG_FILE, and the saved point cloud file.
     # If your GPD executable supports passing extra parameters, add them to the command list.
