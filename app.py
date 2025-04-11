@@ -23,6 +23,7 @@ EXECUTABLE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "detect_gr
 # Configuration file path for GPD (e.g., located under a "cfg" subdirectory)
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cfg", "eigen_params.cfg")
 if not os.path.exists(EXECUTABLE):
+    print("not found")
     logger.error(f"GPD executable not found at {EXECUTABLE}")
 if not os.path.exists(CONFIG_FILE):
     logger.error(f"GPD config file not found at {CONFIG_FILE}")
