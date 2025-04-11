@@ -22,9 +22,12 @@ app = Flask(__name__)
 EXECUTABLE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "detect_grasps")
 # Configuration file path for GPD (e.g., located under a "cfg" subdirectory)
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cfg", "eigen_params.cfg")
-
-logger.info(f"GPD Executable path: {EXECUTABLE}")
-logger.info(f"Config file path: {CONFIG_FILE}")
+if not os.path.exists(EXECUTABLE):
+    logger.error(f"GPD executable not found at {EXECUTABLE}")
+if not os.path.exists(CONFIG_FILE):
+    logger.error(f"GPD config file not found at {CONFIG_FILE}")
+else:
+    logger.info(f"Config file path: {CONFIG_FILE}")
 
 @app.route('/detect_grasps', methods=['POST'])
 def detect_grasps():
