@@ -171,9 +171,9 @@ def detect_grasps():
         if os.path.exists(input_file_path):
             try:
                 os.remove(input_file_path)
-                logger.debug("Removed temporary file:",input_file_path)
+                logger.debug("Removed temporary file: {}".format(input_file_path))
             except Exception as e:
-                logger.warning("Failed to remove temporary file:", str(e))
+                logger.warning("Failed to remove temporary file: {}".format(str(e)))
     
     # Return the result as JSON.
     logger.info("Returning successful response")
@@ -182,7 +182,7 @@ def detect_grasps():
 @app.errorhandler(Exception)
 def handle_exception(e):
     """Handle any uncaught exception"""
-    logger.error("Uncaught exception: ", str(e))
+    logger.error("Uncaught exception: {}".format(str(e)))
     logger.error(traceback.format_exc())
     return jsonify({
         "error": "Internal server error",
