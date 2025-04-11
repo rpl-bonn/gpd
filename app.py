@@ -182,7 +182,7 @@ def detect_grasps():
 @app.errorhandler(Exception)
 def handle_exception(e):
     """Handle any uncaught exception"""
-    logger.error(f"Uncaught exception: {str(e)}")
+    logger.error("Uncaught exception: ", str(e))
     logger.error(traceback.format_exc())
     return jsonify({
         "error": "Internal server error",
