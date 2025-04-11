@@ -70,25 +70,21 @@ if __name__ == "__main__":
     env_cloud.points = o3d.utility.Vector3dVector(np.array(env_points))
     
     print("Testing GPD server with simple point clouds...")
-    try:
-        # Call the GPD server
-        tf_matrices, widths, scores = predict_full_grasp(
-            item_cloud, 
-            env_cloud, 
-            rotation_resolution=8,  # Lower resolution for faster testing
-            top_n=3,
-            n_best=1
-        )
+    # Call the GPD server
+    tf_matrices, widths, scores = predict_full_grasp(
+        item_cloud, 
+        env_cloud, 
+        rotation_resolution=8,  # Lower resolution for faster testing
+        top_n=3,
+        n_best=1
+    )
+    
+    # Display results
+    print(f"Found {len(scores)} grasp candidates")
+    for i in range(len(scores)):
+        print(f"Grasp {i+1}:")
+        print(f"  Score: {scores[i]}")
+        print(f"  Width: {widths[i]}")
+        print(f"  Transform matrix:")
+        print(tf_matrices[i])
         
-        # Display results
-        print(f"Found {len(scores)} grasp candidates")
-        for i in range(len(scores)):
-            print(f"Grasp {i+1}:")
-            print(f"  Score: {scores[i]}")
-            print(f"  Width: {widths[i]}")
-            print(f"  Transform matrix:")
-            print(tf_matrices[i])
-            
-    except Exception as e:
-        print(f"Error testing GPD server: {e}")
-        print("Make sure the GPD server is running at the specified URL.")
