@@ -5,7 +5,7 @@ import open3d as o3d
 import requests
 import json
 
-GPD_SERVER_URL = "http://0.0.0.0:5000/detect_grasps"  # Change if needed
+GPD_SERVER_URL = "http://localhost:5000/detect_grasps"  # Changed from 0.0.0.0 to localhost
 
 def predict_full_grasp(item_cloud: o3d.geometry.PointCloud,
                        env_cloud: o3d.geometry.PointCloud,

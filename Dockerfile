@@ -34,12 +34,8 @@ RUN apt-get install -y \
     mesa-common-dev vim git unzip mercurial freeglut3-dev libflann-dev \
     libboost1.58-all-dev libeigen3-dev python libusb-1.0-0-dev libudev-dev doxygen graphviz \
     libpng12-dev libgtest-dev libpcap-dev libvtk5-qt4-dev python-vtk libvtk-java \
-    libgtk2.0-dev libavcodec-dev libavformat-dev libjpeg-dev libtiff-dev libswscale-dev libjasper-dev
-
-#install pip
-RUN apt-get install -y python3-pip
-RUN pip3 install --upgrade pip
-
+    libgtk2.0-dev libavcodec-dev libavformat-dev libjpeg-dev libtiff-dev libswscale-dev libjasper-dev \
+    libffi-dev
 
 
 # Install a newer version of CMake (3.9.1)
@@ -50,6 +46,13 @@ RUN cd /opt && \
     ln -sf /opt/cmake-3.9.1/bin/* /usr/bin/
 
 RUN apt-get autoremove -y && apt-get clean
+
+#install pip
+RUN apt-get install -y python3-pip
+RUN python3 -m pip install pip==20.3.4
+
+# Install Python packages for the Flask application
+RUN pip3 install flask numpy open3d requests
 
 # Install Eigen (version 3.2.0)
 RUN cd /opt && \

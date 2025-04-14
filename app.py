@@ -6,7 +6,8 @@ import json
 import logging
 import traceback
 import shutil
-from flask import Flask, request, jsonify
+import time
+from flask import Flask, request, jsonify, send_file
 
 # Configure logging
 logging.basicConfig(
@@ -17,6 +18,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+
+# Add a root route for testing
+@app.route('/', methods=['GET'])
+def index():
+    return jsonify({
+        "status": "ok",
+        "message": "GPD API is running",
+        "endpoints": {
+            "/detect_grasps": "POST - Detect grasps from a point cloud file"
+        }
+    })
 
 # Change these paths if necessary.
 # Path to the GPD executable
@@ -57,6 +69,15 @@ if not os.path.exists(CONFIG_FILE):
 else:
     logger.info("Config file path: {}".format(CONFIG_FILE))
 
+# Add a route to serve the visualization image
+@app.route('/visualization.png', methods=['GET'])
+def get_visualization():
+    vis_path = os.path.join(WORKSPACE_PATH, "build", "visualization.png")
+    if os.path.exists(vis_path):
+        return send_file(vis_path, mimetype='image/png')
+    else:
+        return jsonify({'error': 'Visualization not available'}), 404
+
 @app.route('/detect_grasps', methods=['POST'])
 def detect_grasps():
     logger.info("Received grasp detection request")
@@ -68,6 +89,10 @@ def detect_grasps():
     
     point_cloud_file = request.files['point_cloud']
     logger.info("Received point cloud file: {}".format(point_cloud_file.filename))
+    
+    # Get visualization parameter
+    enable_visualization = request.form.get('enable_visualization', '0').lower() in ['1', 'true', 'yes']
+    logger.info("Visualization enabled: {}".format(enable_visualization))
     
     # Save the incoming point cloud to a temporary file.
     temp_dir = tempfile.gettempdir()
@@ -159,14 +184,55 @@ def detect_grasps():
         logger.debug("Starting subprocess")
         # Change to build directory before running the command
         build_dir = os.path.dirname(EXECUTABLE)
+        logger.info("Running command in directory: {}".format(build_dir))
+        
+        # Set environment variable to save visualization to file
+        env = os.environ.copy()
+        if enable_visualization:
+            # Enable all visualization parameters through environment variables
+            env["GPD_PLOT_NORMALS"] = "1"
+            env["GPD_PLOT_SAMPLES"] = "1"
+            env["GPD_PLOT_CANDIDATES"] = "1"
+            env["GPD_PLOT_FILTERED_CANDIDATES"] = "1"
+            env["GPD_PLOT_VALID_GRASPS"] = "1"
+            env["GPD_PLOT_CLUSTERED_GRASPS"] = "1"
+            env["GPD_PLOT_SELECTED_GRASPS"] = "1"
+        else:
+            # Disable all visualization
+            env["GPD_PLOT_NORMALS"] = "0"
+            env["GPD_PLOT_SAMPLES"] = "0"
+            env["GPD_PLOT_CANDIDATES"] = "0"
+            env["GPD_PLOT_FILTERED_CANDIDATES"] = "0"
+            env["GPD_PLOT_VALID_GRASPS"] = "0"
+            env["GPD_PLOT_CLUSTERED_GRASPS"] = "0"
+            env["GPD_PLOT_SELECTED_GRASPS"] = "0"
+        
+        env["GPD_SAVE_VISUALIZATION"] = "1"
+        env["GPD_VISUALIZATION_FILE"] = os.path.join(build_dir, "visualization.png")
+        
         process = subprocess.Popen(
             command,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             universal_newlines=True,
-            cwd=build_dir  # Set working directory to build directory
+            cwd=build_dir,  # Set working directory to build directory
+            env=env  # Pass environment variables
         )
-        stdout, stderr = process.communicate(timeout=60)
+        
+        # Start a timer to log progress
+        start_time = time.time()
+        logger.info("Starting grasp detection process...")
+        
+        try:
+            stdout, stderr = process.communicate(timeout=300)  # Increased timeout to 300 seconds
+            elapsed_time = time.time() - start_time
+            logger.info("Process completed in {:.2f} seconds".format(elapsed_time))
+        except subprocess.TimeoutExpired:
+            elapsed_time = time.time() - start_time
+            logger.error("Process timed out after {:.2f} seconds".format(elapsed_time))
+            process.kill()
+            stdout, stderr = process.communicate()
+            raise
         
         # Log both stdout and stderr for debugging
         logger.debug("Command stdout: {}".format(stdout))
@@ -190,6 +256,12 @@ def detect_grasps():
         try:
             result = json.loads(result_json)
             logger.info("Successfully parsed JSON result")
+            
+            # Add visualization URL to the result
+            vis_path = os.path.join(build_dir, "visualization.png")
+            if os.path.exists(vis_path):
+                result["visualization_url"] = "/visualization.png"
+            
         except json.JSONDecodeError as e:
             logger.error("JSON decode error: {}".format(str(e)))
             logger.error("Raw output: {}".format(result_json))
