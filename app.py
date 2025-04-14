@@ -5,6 +5,7 @@ import subprocess
 import json
 import logging
 import traceback
+import shutil
 from flask import Flask, request, jsonify
 
 # Configure logging
@@ -26,6 +27,27 @@ CONFIG_FILE = os.path.join(WORKSPACE_PATH, "cfg", "eigen_params.cfg")
 # Additional required config files
 HAND_GEOMETRY_CFG = os.path.join(WORKSPACE_PATH, "cfg", "hand_geometry.cfg")
 IMAGE_GEOMETRY_CFG = os.path.join(WORKSPACE_PATH, "cfg", "image_geometry_15channels.cfg")
+
+# Create cfg directory in build if it doesn't exist
+BUILD_CFG_DIR = os.path.join(WORKSPACE_PATH, "build", "cfg")
+os.makedirs(BUILD_CFG_DIR, exist_ok=True)
+
+# Copy config files to build directory
+def copy_config_files():
+    # Copy hand geometry config
+    hand_geometry_dest = os.path.join(BUILD_CFG_DIR, "hand_geometry.cfg")
+    if not os.path.exists(hand_geometry_dest):
+        shutil.copy2(HAND_GEOMETRY_CFG, hand_geometry_dest)
+        logger.debug(f"Copied hand geometry config to {hand_geometry_dest}")
+    
+    # Copy image geometry config
+    image_geometry_dest = os.path.join(BUILD_CFG_DIR, "image_geometry_15channels.cfg")
+    if not os.path.exists(image_geometry_dest):
+        shutil.copy2(IMAGE_GEOMETRY_CFG, image_geometry_dest)
+        logger.debug(f"Copied image geometry config to {image_geometry_dest}")
+
+# Copy config files on startup
+copy_config_files()
 
 if not os.path.exists(EXECUTABLE):
     logger.error("GPD executable not found at {}".format(EXECUTABLE))
@@ -135,11 +157,14 @@ def detect_grasps():
         # Execute the GPD command.
         # We assume that the executable returns a JSON string on stdout.
         logger.debug("Starting subprocess")
+        # Change to build directory before running the command
+        build_dir = os.path.dirname(EXECUTABLE)
         process = subprocess.Popen(
             command,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            universal_newlines=True
+            universal_newlines=True,
+            cwd=build_dir  # Set working directory to build directory
         )
         stdout, stderr = process.communicate(timeout=60)
         
