@@ -4,6 +4,15 @@ FROM songhesd/cuda:9.1-cudnn7-runtime-ubuntu16.04
 # Prevent interactive prompts from apt
 ENV DEBIAN_FRONTEND=noninteractive
 
+# Expose port 5000 for the Flask application
+EXPOSE 5000
+
+# Install Xvfb for virtual display
+RUN apt-get update && apt-get install -y xvfb
+
+# Set up environment variables for Xvfb
+ENV DISPLAY=:99
+
 # Update and install basic tools
 RUN apt-get update && apt-get install -y \
     software-properties-common ca-certificates wget
@@ -97,4 +106,4 @@ WORKDIR /opt/gpd/build
 #docker run -it --gpus all grasp-pose-detector bash
 #./detect_grasps ../cfg/eigen_params.cfg ../tutorials/krylon.pcd
 # Default command to run bash or app.py
-CMD ["bash", "-c", "cd /opt/gpd/build && cmake .. && make -j && bash"]
+CMD ["bash", "-c", "Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 & cd /opt/gpd/build && cmake .. && make -j && python3 /opt/gpd/app.py"]
