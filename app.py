@@ -38,13 +38,13 @@ def copy_config_files():
     hand_geometry_dest = os.path.join(BUILD_CFG_DIR, "hand_geometry.cfg")
     if not os.path.exists(hand_geometry_dest):
         shutil.copy2(HAND_GEOMETRY_CFG, hand_geometry_dest)
-        logger.debug(f"Copied hand geometry config to {hand_geometry_dest}")
+        logger.debug("Copied hand geometry config to {}".format(hand_geometry_dest))
     
     # Copy image geometry config
     image_geometry_dest = os.path.join(BUILD_CFG_DIR, "image_geometry_15channels.cfg")
     if not os.path.exists(image_geometry_dest):
         shutil.copy2(IMAGE_GEOMETRY_CFG, image_geometry_dest)
-        logger.debug(f"Copied image geometry config to {image_geometry_dest}")
+        logger.debug("Copied image geometry config to {}".format(image_geometry_dest))
 
 # Copy config files on startup
 copy_config_files()
