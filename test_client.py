@@ -7,6 +7,44 @@ import json
 
 GPD_SERVER_URL = "http://localhost:5000/detect_grasps"  # Changed from 0.0.0.0 to localhost
 
+def create_gripper_mesh(width=0.1, depth=0.1, height=0.02):
+    """Create a simple gripper mesh for visualization."""
+    mesh = o3d.geometry.TriangleMesh.create_box(width=width, height=height, depth=depth)
+    mesh.paint_uniform_color([0.8, 0.2, 0.2])  # Red color for the gripper
+    return mesh
+
+def visualize_grasps(item_cloud, env_cloud, tf_matrices, widths, scores):
+    """Visualize the point clouds and detected grasps."""
+    # Create visualization geometries
+    vis_geometries = []
+    
+    # Add point clouds with different colors
+    item_cloud.paint_uniform_color([0.2, 0.8, 0.2])  # Green for item
+    env_cloud.paint_uniform_color([0.7, 0.7, 0.7])   # Gray for environment
+    vis_geometries.extend([item_cloud, env_cloud])
+    
+    # Add gripper meshes for each grasp
+    for i, (tf, width, score) in enumerate(zip(tf_matrices, widths, scores)):
+        gripper = create_gripper_mesh(width=width)
+        gripper.transform(tf)
+        vis_geometries.append(gripper)
+    
+    # Create visualizer
+    vis = o3d.visualization.Visualizer()
+    vis.create_window()
+    
+    # Add all geometries
+    for geometry in vis_geometries:
+        vis.add_geometry(geometry)
+    
+    # Set default camera view
+    ctr = vis.get_view_control()
+    ctr.set_zoom(0.8)
+    
+    # Run visualizer
+    vis.run()
+    vis.destroy_window()
+
 def predict_full_grasp(item_cloud: o3d.geometry.PointCloud,
                        env_cloud: o3d.geometry.PointCloud,
                        rotation_resolution=24,
@@ -87,4 +125,8 @@ if __name__ == "__main__":
         print(f"  Width: {widths[i]}")
         print(f"  Transform matrix:")
         print(tf_matrices[i])
+    
+    # Visualize the results
+    print("\nVisualizing results...")
+    visualize_grasps(item_cloud, env_cloud, tf_matrices, widths, scores)
         
