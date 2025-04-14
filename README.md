@@ -1,35 +1,38 @@
 # Updates
 
-This is a fork. For our purpose, we just want to replace AnyGrasp, and test this out. Thus, we have a Dockerfile, which uses this repo.
+This fork is intended to replace AnyGrasp for our testing purposes. We use the repository via a Dockerfile. Follow the steps below to pull and run the container:
 
-run app.py in docker
+## 1. Pull the Docker Image
 
+Pull the image from the registry:
 
-docker run --gpus all -it \
-  -p 5000:5000 \
-  -v /home/user/azirar/containers/gpd:/workspace \
-  gpd
+```bash
+docker pull registry.gitlab.uni-bonn.de:5050/rpl/public_registry/gpd
+```
 
+## 2. Run the Docker Container
 
+Run the container by replacing <PATH_TO_REPO> with the path to your local repository:
 
+docker run --gpus all -it -p 5000:5000 \
+  -v <PATH_TO_REPO>/gpd:/workspace \
+  -v /tmp/.X11-unix:/tmp/.X11-unix \
+  -e DISPLAY=:1 \
+  -e LIBGL_ALWAYS_SOFTWARE=1 \
+  -e MESA_GL_VERSION_OVERRIDE=3.3 \
+  --net=host \
+  gpd \
+  bash -c "Xvfb :1 -ac -screen 0 1024x768x24 -nolisten tcp > /dev/null 2>&1 & sleep 2; export DISPLAY=:1; python3 /workspace/app.py"
 
-then 
-python3 -m pip install pip==20.3.4
-pip3 install flask
-cd 
-cd ..
-python3 workspace/app.py
+## 3. Inference
 
-docker run --gpus all -it   -p 5000:5000   -v /home/user/azirar/docker_containers/grasp_pose_detection/gpd:/workspace   gpd bash
+Once the container is running, you can test the application by either running the test client script:
 
-
-curl -X POST -F "point_cloud=@krylon.pcd" http://localhost:5000/detect_grasps
-
-  to share docker.
-
-  i have to update the docker so it installs flasks and directly launches app.py
-
-do we even need this old version..
+```bash
+python test_client.py
+```
+or directly leveraging the  `bash http://localhost:5000/detect_grasps ` interface.
+ 
 
 
 # Grasp Pose Detection (GPD)
