@@ -3,10 +3,15 @@
 This is a fork. For our purpose, we just want to replace AnyGrasp, and test this out. Thus, we have a Dockerfile, which uses this repo.
 
 run app.py in docker
+
+
 docker run --gpus all -it \
   -p 5000:5000 \
   -v /home/user/azirar/containers/gpd:/workspace \
-  registry.gitlab.uni-bonn.de:5050/rpl/public_registry/grasp_pose_detection
+  gpd
+
+
+
 
 then 
 python3 -m pip install pip==20.3.4
@@ -15,6 +20,10 @@ cd
 cd ..
 python3 workspace/app.py
 
+docker run --gpus all -it   -p 5000:5000   -v /home/user/azirar/docker_containers/grasp_pose_detection/gpd:/workspace   gpd bash
+
+
+curl -X POST -F "point_cloud=@krylon.pcd" http://localhost:5000/detect_grasps
 
   to share docker.
 

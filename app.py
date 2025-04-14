@@ -9,6 +9,12 @@ import shutil
 import time
 from flask import Flask, request, jsonify, send_file
 
+
+# Add at the start of your app.py
+import os
+os.environ['LIBGL_ALWAYS_SOFTWARE'] = '1'
+os.environ['MESA_GL_VERSION_OVERRIDE'] = '3.3'
+
 # Configure logging
 logging.basicConfig(
     level=logging.DEBUG,

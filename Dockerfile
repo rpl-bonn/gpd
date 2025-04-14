@@ -62,14 +62,37 @@ RUN cd /opt && \
     mkdir build && cd build && \
     cmake .. && make -j$(nproc) && make install
 
+# Install OSMesa for offscreen rendering
+RUN apt-get update && apt-get install -y \
+    libosmesa6-dev \
+    libgl1-mesa-dev \
+    libglu1-mesa-dev \
+    freeglut3-dev \
+    mesa-common-dev
+
+
+RUN apt-get update && apt-get install -y \
+    libgl1-mesa-glx \
+    libgl1-mesa-dri \
+    xvfb \
+    mesa-utils \
+    libglu1-mesa \
+    xauth \
+    x11-xserver-utils
+
 # Install VTK (version 8.0.0)
 RUN cd /opt && \
     git clone https://github.com/Kitware/VTK VTK && \
     cd VTK && \
     git checkout tags/v8.0.0 && \
     mkdir build && cd build && \
-    cmake -DCMAKE_BUILD_TYPE=Release -DVTK_RENDERING_BACKEND=OpenGL .. && \
+    cmake -DCMAKE_BUILD_TYPE=Release \
+          -DVTK_RENDERING_BACKEND=OpenGL2 \
+          -DVTK_USE_X=ON \
+          -DVTK_USE_OFFSCREEN=ON \
+          -DVTK_OPENGL_HAS_OSMESA=OFF .. && \
     make -j$(nproc) && make install
+    
 
 # Install PCL (version 1.9.0)
 RUN cd /opt && \
@@ -109,4 +132,5 @@ WORKDIR /opt/gpd/build
 #docker run -it --gpus all grasp-pose-detector bash
 #./detect_grasps ../cfg/eigen_params.cfg ../tutorials/krylon.pcd
 # Default command to run bash or app.py
-CMD ["bash", "-c", "Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 & cd /opt/gpd/build && cmake .. && make -j && python3 /opt/gpd/app.py"]
+#CMD ["bash", "-c", "export LIBGL_ALWAYS_SOFTWARE=1; Xvfb :99 -ac -screen 0 1024x768x24 > /dev/null 2>&1 & cd /opt/gpd/build && cmake .. && make -j && python3 /workspace/app.py"]
+CMD ["bash", "-c", "Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 & cd /opt/gpd/build && cmake .. && make -j && python3 /workspace/app.py"]
