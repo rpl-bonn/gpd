@@ -19,8 +19,7 @@ app = Flask(__name__)
 
 # Change these paths if necessary.
 # Path to the GPD executable
-# WORKSPACE_PATH = os.path.dirname(os.path.abspath(__file__))
-WORKSPACE_PATH = os.path.abspath("opt/gpd")
+WORKSPACE_PATH = "/opt/gpd"  # This is where GPD is installed in the Docker container
 EXECUTABLE = os.path.join(WORKSPACE_PATH, "build", "detect_grasps")
 # Configuration file paths for GPD
 CONFIG_FILE = os.path.join(WORKSPACE_PATH, "cfg", "eigen_params.cfg")

@@ -11,6 +11,8 @@ docker run --gpus all -it \
 then 
 python3 -m pip install pip==20.3.4
 pip3 install flask
+cd 
+cd ..
 python3 workspace/app.py
 
 
