@@ -1,4 +1,5 @@
 # Updates
+- [ ] TODO: Have to check with the config files 
 
 This fork is intended to replace AnyGrasp for our testing purposes. We use the repository via a Dockerfile. Follow the steps below to pull and run the container:
 
