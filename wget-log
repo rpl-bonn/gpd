@@ -1,0 +1,11 @@
+--2025-04-16 17:02:26--  https://uni-bonn.sciebo.de/s/Rv9kVbwOrBZxWE7/download?path=%2F
+Resolving uni-bonn.sciebo.de (uni-bonn.sciebo.de)... 128.176.1.2
+Connecting to uni-bonn.sciebo.de (uni-bonn.sciebo.de)|128.176.1.2|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: unspecified [application/zip]
+Saving to: ‘env_cloud.ply’
+
+env_cloud.ply                         [<=>                                                           ]       0  --.-KB/s               env_cloud.ply                         [ <=>                                                          ]   2.31M  --.-KB/s    in 0.08s   
+
+2025-04-16 17:02:26 (29.8 MB/s) - ‘env_cloud.ply’ saved [2427705]
+

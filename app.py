@@ -20,8 +20,8 @@ app.config['DEBUG'] = True
 
 # GPD settings
 WORKING_DIR = "/opt/gpd/build"
-CONFIG_FILE = "/opt/gpd/cfg/eigen_params.cfg"
-
+CONFIG_DIR = "/workspace/cfg"
+CONFIG_FILE = os.path.join(CONFIG_DIR, "eigen_params.cfg")
 def copy_config_files():
     """Copy required config files to the build directory."""
     try:
@@ -35,7 +35,7 @@ def copy_config_files():
                     raise
             
         # Copy hand geometry config if needed
-        hand_geometry_src = os.path.join("/opt/gpd/cfg", "hand_geometry.cfg")
+        hand_geometry_src = os.path.join(CONFIG_DIR, "hand_geometry.cfg")
         hand_geometry_dst = os.path.join(WORKING_DIR, "cfg", "hand_geometry.cfg")
         if not os.path.exists(hand_geometry_dst):
             with open(hand_geometry_src, 'r') as src, open(hand_geometry_dst, 'w') as dst:
@@ -43,7 +43,7 @@ def copy_config_files():
             logger.debug("Copied hand geometry config to {0}".format(hand_geometry_dst))
             
         # Copy image geometry config if needed
-        img_geometry_src = os.path.join("/opt/gpd/cfg", "image_geometry_15channels.cfg")
+        img_geometry_src = os.path.join(CONFIG_DIR, "image_geometry_15channels.cfg")
         img_geometry_dst = os.path.join(WORKING_DIR, "cfg", "image_geometry_15channels.cfg")
         if not os.path.exists(img_geometry_dst):
             with open(img_geometry_src, 'r') as src, open(img_geometry_dst, 'w') as dst:
@@ -147,12 +147,9 @@ def detect_grasps():
         logger.debug("Parameters: rotation_resolution={0}, top_n={1}, n_best={2}".format(
             rotation_resolution, top_n, n_best))
         command = [
-            "/opt/gpd/build/detect_grasps",
+            os.path.join(WORKING_DIR, "detect_grasps"),
             CONFIG_FILE,
-            temp_path,
-            rotation_resolution,
-            top_n,
-            n_best
+            temp_path
         ]
         command_str = " ".join(command)
         logger.info("Executing command: {0}".format(command_str))

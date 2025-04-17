@@ -6,3 +6,4 @@ venv/
 *.ply
 
 run_docker.sh
+run_test_script.sh
