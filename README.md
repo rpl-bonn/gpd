@@ -50,6 +50,11 @@ python test_client.py
 ```
 or directly leveraging the  `bash http://localhost:5000/detect_grasps ` interface.
  
+### Note
+from claude:
+
+workspace_grasps - These parameters define a box where grasps are allowed. The current values 0.4 1.7 3.7 4.5 0.3 1.6 seem very specific to a particular workspace and might not match your
+
 
 
 # Grasp Pose Detection (GPD)

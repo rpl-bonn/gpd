@@ -107,13 +107,48 @@ def predict_full_grasp(
     if len(tf_matrices) > 0:
         print("Transforming grasp poses to item location...")
         corrected_tf_matrices = []
+        item_bbox = item_cloud.get_axis_aligned_bounding_box()
+        item_size = item_bbox.get_extent()
+        item_min = item_bbox.min_bound
+        item_max = item_bbox.max_bound
+        
+        # Calculate offsets for better surface positioning
+        # For grasps on top of object: position slightly above the minimum height of the object
+        top_surface_height = item_max[2]
+        side_grasp_height = (item_min[2] + item_max[2]) / 2
+        
+        # Get a smaller bounding box that's easier to grasp (exclude edges)
+        safe_margin = 0.01  # 1cm margin from edges
+        safe_min = item_min + np.array([safe_margin, safe_margin, 0])
+        safe_max = item_max - np.array([safe_margin, safe_margin, 0])
+        
         for tf in tf_matrices:
             # Create a copy of the transformation matrix
             corrected_tf = tf.copy()
-            # Set the translation part to be relative to the item's center
-            corrected_tf[0, 3] += item_center[0]  # X coordinate
-            corrected_tf[1, 3] += item_center[1]  # Y coordinate
-            corrected_tf[2, 3] += item_center[2]  # Z coordinate
+            
+            # Get approach vector (Z-axis of gripper)
+            approach_vector = tf[:3, 2]
+            is_top_grasp = approach_vector[2] < -0.7  # Approaching from above
+            is_side_grasp = abs(approach_vector[0]) > 0.7 or abs(approach_vector[1]) > 0.7  # Side approach
+            
+            # Set X,Y coordinates to be within the safe grasp region
+            # Clamp X,Y coordinates to be within the item footprint plus a small margin
+            raw_x = item_center[0] + tf[0, 3]
+            raw_y = item_center[1] + tf[1, 3]
+            corrected_tf[0, 3] = np.clip(raw_x, safe_min[0], safe_max[0])
+            corrected_tf[1, 3] = np.clip(raw_y, safe_min[1], safe_max[1])
+            
+            # For Z coordinate, position differently based on approach direction
+            if is_top_grasp:
+                # For top grasps, position slightly above the top surface
+                corrected_tf[2, 3] = top_surface_height + 0.01  # 1cm above surface
+            elif is_side_grasp:
+                # For side grasps, position at the center height
+                corrected_tf[2, 3] = side_grasp_height
+            else:
+                # For other angles, use a middle-ground approach
+                corrected_tf[2, 3] = item_center[2]
+                
             corrected_tf_matrices.append(corrected_tf)
         
         tf_matrices = np.array(corrected_tf_matrices)
