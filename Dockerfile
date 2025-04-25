@@ -123,8 +123,33 @@ RUN cd /opt && \
           -DCMAKE_AR=/usr/bin/gcc-ar \
           -DCMAKE_RANLIB=/usr/bin/gcc-ranlib \
           -DCMAKE_NM=/usr/bin/gcc-nm .. && \
-    make -j$(nproc)
+    make -j$(nproc) && \
+    make install
 
+# Setup catkin workspace and install gpd_ros
+RUN mkdir -p /opt/catkin_ws/src
+
+# Install ROS dependencies
+RUN apt-get update && apt-get install -y \
+    python-catkin-tools \
+    ros-kinetic-catkin \
+    ros-kinetic-eigen-conversions \
+    ros-kinetic-pcl-conversions \
+    ros-kinetic-pcl-ros \
+    ros-kinetic-cv-bridge \
+    ros-kinetic-roscpp \
+    ros-kinetic-sensor-msgs \
+    libeigen3-dev
+
+# Clone gpd_ros repository
+RUN cd /opt/catkin_ws/src && \
+    git clone https://github.com/atenpas/gpd_ros.git && \
+    cd /opt/catkin_ws && \
+    bash -c "source /opt/ros/kinetic/setup.bash && catkin_make"
+
+# Add ROS setup to bashrc
+RUN echo "source /opt/ros/kinetic/setup.bash" >> /root/.bashrc && \
+    echo "source /opt/catkin_ws/devel/setup.bash" >> /root/.bashrc
 
 WORKDIR /opt/gpd/build
 
