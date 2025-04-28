@@ -7,7 +7,7 @@
 -->
 
     <!-- What type of point cloud is used and what ROS topic it comes from -->
-    <param name="cloud_type" value="2" /> <!-- 0: PointCloud2, 1: CloudIndexed, 2: CloudSamples -->
+    <param name="cloud_type" value="0" /> <!-- 0: PointCloud2, 1: CloudIndexed, 2: CloudSamples -->
     <param name="cloud_topic" value="/cloud_stitched" />
 
     <!-- (optional) The ROS topic that the samples come from (default: an empty string) -->
@@ -15,7 +15,7 @@
 
     <!-- Filepath to the configuration file for GPD -->
     <!-- <param name="config_file" value="/home/ur5/projects/gpd/cfg/ros_eigen_params.cfg" /> -->
-    <param name="config_file" value="/home/ur5/projects/gpd/cfg/ros_vino_params.cfg" />
+    <param name="config_file" value="/workspace/cfg/ros_eigen_params.cfg" />
 
     <param name="rviz_topic" value="plot_grasps" />
 

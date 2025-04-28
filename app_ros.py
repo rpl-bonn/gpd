@@ -1,161 +1,240 @@
 #!/usr/bin/env python3
 """
-ROS-based server for GraspNet grasp detection system.
-This module serves as the main server application for the GraspNet
-system using the ROS interface instead of the HTTP-based approach.
+ROS-based server for GPD (Grasp Pose Detection) system.
+This module serves as the main server application for GPD using ROS.
 
 Usage:
-    1. Start the ROS master: roscore
-    2. Start the GPD ROS node: roslaunch gpd_ros detect_grasps.launch
-    3. Run this server: python app_ros.py
+    1. Run this inside the Docker container where GPD and ROS are set up
+    
+The server receives point clouds and optional sample indexes, 
+processes them using the GPD ROS package, and returns grasp poses.
 """
 
 import os
 import time
 import logging
-import rospy
 import numpy as np
-import open3d as o3d
 import tempfile
 from flask import Flask, request, jsonify
-from graspnet_ros_interface import predict_grasps_ros, get_best_grasp_ros
+import open3d as o3d
+from sensor_msgs.msg import PointCloud2
+import sensor_msgs.point_cloud2 as pc2
+from gpd_ros.msg import CloudSources, CloudIndexed, GraspConfigList, GraspConfig
+from geometry_msgs.msg import Point, Vector3
+from std_msgs.msg import Header, Float64
+import rospy
 
 # Configure logging
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
 # Flask application
 app = Flask(__name__)
-app.config['DEBUG'] = True
 
-# Initialize ROS node
-rospy.init_node('graspnet_ros_server', anonymous=True, disable_signals=True)
-logger.info("Initialized ROS node 'graspnet_ros_server'")
+# Global variable to store the last received grasp list
+last_grasp_list = None
+grasp_received = False
+
+def grasp_callback(grasp_list_msg):
+    """Callback function for received grasp poses"""
+    global last_grasp_list, grasp_received
+    logger.info("Received grasp list with {} grasps".format(len(grasp_list_msg.grasps)))
+    last_grasp_list = grasp_list_msg
+    grasp_received = True
+
+def convert_o3d_to_ros_cloud(o3d_cloud, frame_id="base_link"):
+    """Convert Open3D point cloud to ROS PointCloud2 message"""
+    points = np.asarray(o3d_cloud.points)
+    
+    # Create header
+    header = Header()
+    header.stamp = rospy.Time.now()
+    header.frame_id = frame_id
+    
+    # Create PointCloud2 message
+    cloud_msg = pc2.create_cloud_xyz32(header, points)
+    return cloud_msg
+
+def create_cloud_indexed_msg(cloud_msg, indices=None):
+    """Create CloudIndexed message from PointCloud2"""
+    if indices is None:
+        # If no indices provided, use all points
+        indices = list(range(cloud_msg.width * cloud_msg.height))
+    
+    # Create CloudSources message
+    cloud_sources = CloudSources()
+    cloud_sources.cloud = cloud_msg
+    # Set camera_source as a list of zeros (single camera for all points)
+    num_points = cloud_msg.width * cloud_msg.height
+    cloud_sources.camera_source = [0] * num_points
+    
+    # Create a view point for the camera
+    from geometry_msgs.msg import Point
+    view_point = Point()
+    view_point.x = 0
+    view_point.y = 0
+    view_point.z = 0
+    cloud_sources.view_points = [view_point]
+    
+    # Create CloudIndexed message
+    cloud_indexed = CloudIndexed()
+    cloud_indexed.cloud_sources = cloud_sources
+    cloud_indexed.indices = indices
+    
+    return cloud_indexed
+
+def wait_for_grasp_results(timeout=30):
+    """Wait for grasp results with timeout"""
+    global grasp_received
+    start_time = time.time()
+    
+    while not grasp_received and (time.time() - start_time) < timeout:
+        time.sleep(0.1)
+    
+    if not grasp_received:
+        logger.warning("Timed out waiting for grasp results after {} seconds".format(timeout))
+        return False
+    
+    return True
+
+def process_grasp_results():
+    """Process and format grasp results for API response"""
+    global last_grasp_list, grasp_received
+    
+    if not grasp_received or last_grasp_list is None:
+        return {"error": "No grasp poses detected"}
+    
+    grasps = []
+    
+    for grasp in last_grasp_list.grasps:
+        grasp_pose = {
+            "position": {
+                "x": grasp.position.x,
+                "y": grasp.position.y,
+                "z": grasp.position.z
+            },
+            "orientation": {
+                "x": grasp.approach.x,
+                "y": grasp.approach.y,
+                "z": grasp.approach.z
+            },
+            "width": grasp.width.data,
+            "score": grasp.score.data
+        }
+        grasps.append(grasp_pose)
+    
+    # Reset for next request
+    grasp_received = False
+    
+    return {
+        "grasps": grasps,
+        "count": len(grasps)
+    }
 
 @app.route('/detect_grasps', methods=['POST'])
 def detect_grasps():
-    """API endpoint to detect grasps in a point cloud using ROS service."""
+    """Simple API endpoint to detect grasps in a point cloud using GPD ROS."""
+    global grasp_received, last_grasp_list
+    
     logger.info("Received grasp detection request")
     
-    try:
-        # Check if files were uploaded
-        if 'item_cloud' not in request.files:
-            logger.error("No item point cloud file received")
-            return jsonify({"error": "No item point cloud file provided"}), 400
-            
-        if 'env_cloud' not in request.files:
-            logger.warning("No environment point cloud file received, using empty environment")
-            # Create empty environment cloud
-            env_cloud = o3d.geometry.PointCloud()
-        else:
-            # Save the environment cloud to a temporary file
-            env_file = request.files['env_cloud']
-            logger.info(f"Received environment cloud file: {env_file.filename}")
-            env_temp_file = tempfile.NamedTemporaryFile(prefix='env_cloud_', suffix='.ply', delete=False)
-            env_temp_path = env_temp_file.name
-            env_temp_file.close()
-            
-            env_file.save(env_temp_path)
-            logger.debug(f"Environment point cloud saved to: {env_temp_path}")
-            
-            # Load the environment cloud
-            env_cloud = o3d.io.read_point_cloud(env_temp_path)
-            
-            # Clean up temporary file
-            os.remove(env_temp_path)
-        
-        # Save the item cloud to a temporary file
-        item_file = request.files['item_cloud']
-        logger.info(f"Received item cloud file: {item_file.filename}")
-        item_temp_file = tempfile.NamedTemporaryFile(prefix='item_cloud_', suffix='.ply', delete=False)
-        item_temp_path = item_temp_file.name
-        item_temp_file.close()
-        
-        item_file.save(item_temp_path)
-        logger.debug(f"Item point cloud saved to: {item_temp_path}")
-        
-        # Load the item cloud
-        item_cloud = o3d.io.read_point_cloud(item_temp_path)
-        
-        # Get parameters from request
-        get_best_only = request.form.get('get_best_only', 'false').lower() == 'true'
-        timeout = int(request.form.get('timeout', '90'))
-        
-        # Clean up temporary file
-        os.remove(item_temp_path)
-        
-        # Start timing
-        start_time = time.time()
-        
-        if get_best_only:
-            # Get only the best grasp
-            result = get_best_grasp_ros(item_cloud, env_cloud, timeout=timeout)
-            execution_time = time.time() - start_time
-            logger.info(f"Best grasp detection completed in {execution_time:.2f} seconds")
-            return jsonify(result)
-        else:
-            # Get all grasps
-            tf_matrices, widths, scores = predict_grasps_ros(item_cloud, env_cloud, timeout=timeout)
-            
-            execution_time = time.time() - start_time
-            logger.info(f"Grasp detection completed in {execution_time:.2f} seconds")
-            
-            # Check if any grasps were found
-            if len(scores) == 0:
-                return jsonify({
-                    "success": False,
-                    "message": "No grasps found"
-                })
-            
-            # Convert numpy arrays to lists for JSON serialization
-            result = {
-                "success": True,
-                "tf_matrices": tf_matrices.tolist(),
-                "widths": widths.tolist(),
-                "scores": scores.tolist()
-            }
-            
-            return jsonify(result)
-            
-    except Exception as e:
-        logger.error(f"Error during grasp detection: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+    # Check if files were uploaded
+    if 'cloud' not in request.files:
+        logger.error("No point cloud file received")
+        return jsonify({"error": "No point cloud file provided"}), 400
+    
+    # Save cloud to temporary file
+    cloud_file = request.files['cloud']
+    logger.info("Received cloud file: {}".format(cloud_file.filename))
+    
+    cloud_temp_file = tempfile.NamedTemporaryFile(prefix='cloud_', suffix='.ply', delete=False)
+    cloud_temp_path = cloud_temp_file.name
+    cloud_temp_file.close()
+    
+    cloud_file.save(cloud_temp_path)
+    logger.debug("Point cloud saved to: {}".format(cloud_temp_path))
+    
+    # Load the cloud with Open3D
+    cloud = o3d.io.read_point_cloud(cloud_temp_path)
+    
+    # Check if we have sample indices
+    sample_indices = None
+    if 'indices' in request.form:
+        sample_indices = [int(i) for i in request.form['indices'].split(',')]
+        logger.info("Received {} sample indices".format(len(sample_indices)))
+    
+    # Get timeout parameter
+    timeout = int(request.form.get('timeout', '30'))
+    
+    # Clean up temporary file
+    os.remove(cloud_temp_path)
+    
+    # Convert Open3D point cloud to ROS PointCloud2
+    cloud_msg = convert_o3d_to_ros_cloud(cloud)
+    
+    # Create CloudIndexed message
+    cloud_indexed_msg = create_cloud_indexed_msg(cloud_msg, sample_indices)
+    
+    # Reset grasp received flag
+    grasp_received = False
+    
+    # Publish cloud to GPD
+    cloud_pub.publish(cloud_indexed_msg)
+    logger.info("Published point cloud to GPD")
+    
+    # Wait for results with the specified timeout
+    if wait_for_grasp_results(timeout):
+        # Process and return results
+        result = process_grasp_results()
+        return jsonify(result)
+    else:
+        # Simple failure if no response is received within timeout
+        return jsonify({"error": "Timed out waiting for grasp detection results"}), 408
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    """Simple health check endpoint."""
-    # Check if ROS services are available
-    try:
-        service_name = '/detect_grasps'
-        available = rospy.wait_for_service(service_name, timeout=1)
+    """Health check endpoint to verify ROS connectivity"""
+    # Check if ROS is still running
+    ros_ok = not rospy.is_shutdown()
+    
+    if ros_ok:
+        # Check subscribers to our topic
+        num_subscribers = cloud_pub.get_num_connections()
+        
         return jsonify({
-            "status": "healthy",
-            "ros_service": "available"
+            "status": "ok",
+            "ros_ok": True,
+            "subscribers": num_subscribers,
+            "ready": num_subscribers > 0,
+            "grasp_callback_registered": grasp_sub is not None,
+            "last_grasp_received": grasp_received
         })
-    except rospy.ROSException:
+    else:
+        logger.error("ROS core is shutdown")
         return jsonify({
-            "status": "degraded",
-            "ros_service": "unavailable",
-            "message": f"ROS service {service_name} is not available"
-        }), 503
+            "status": "error",
+            "message": "ROS core is shutdown", 
+            "ros_ok": False
+        }), 500
 
-if __name__ == '__main__':
-    # Log info
-    logger.info("Starting Flask server on port 5000")
-    logger.info("Ensuring ROS services are available...")
+if __name__ == "__main__":
+    # Initialize ROS node
+    rospy.init_node('gpd_ros_server', anonymous=True)
+    logger.info("Initialized ROS node 'gpd_ros_server'")
     
-    # Check for ROS services
-    try:
-        service_name = '/detect_grasps'
-        logger.info(f"Waiting for ROS service: {service_name}")
-        rospy.wait_for_service(service_name, timeout=5)
-        logger.info(f"ROS service {service_name} is available")
-    except rospy.ROSException as e:
-        logger.warning(f"Warning: {service_name} service not available. {str(e)}")
-        logger.warning("Make sure to run 'roslaunch gpd_ros detect_grasps.launch' first")
+    # Create publisher for cloud indexed
+    cloud_pub = rospy.Publisher('/cloud_indexed', CloudIndexed, queue_size=1)
     
-    # Start Flask server
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Subscribe to grasp detections
+    grasp_sub = rospy.Subscriber('/detect_grasps/clustered_grasps', GraspConfigList, grasp_callback)
+    
+    # Wait for subscribers to connect
+    time.sleep(1)
+    
+    logger.info("Starting Flask server...")
+    # Run the Flask app
+    app.run(host='0.0.0.0', port=5000,debug=True)
+

@@ -1,218 +1,168 @@
+#!/usr/bin/env python
+"""
+Simple ROS-based service for GPD (Grasp Pose Detection)
+This MVP allows sending point clouds and receiving grasp candidates
+Python 3.5 compatible version
+"""
+
 import os
+import sys
 import time
-import tempfile
-import subprocess
-import logging
-import json
-from flask import Flask, request, jsonify
 import numpy as np
+from flask import Flask, request, jsonify
+import open3d as o3d
+from sensor_msgs.msg import PointCloud2
+import sensor_msgs.point_cloud2 as pc2
+from std_msgs.msg import Header, Int64
+from gpd_ros.msg import CloudSources, CloudIndexed, GraspConfigList
+import tempfile
+import rospy
 
-# Configure logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
-# Flask application
+# Set up Flask application
 app = Flask(__name__)
-app.config['DEBUG'] = True
 
-# GPD settings
-WORKING_DIR = "/opt/gpd/build"
-CONFIG_DIR = "/workspace/cfg"
-CONFIG_FILE = os.path.join(CONFIG_DIR, "eigen_params.cfg")
-def copy_config_files():
-    """Copy required config files to the build directory."""
-    try:
-        # Check if config files already exist in build directory
-        if not os.path.exists(os.path.join(WORKING_DIR, "cfg")):
-            # Python 3.5 doesn't have exist_ok parameter
-            try:
-                os.makedirs(os.path.join(WORKING_DIR, "cfg"))
-            except OSError:
-                if not os.path.isdir(os.path.join(WORKING_DIR, "cfg")):
-                    raise
-            
-        # Copy hand geometry config if needed
-        hand_geometry_src = os.path.join(CONFIG_DIR, "hand_geometry.cfg")
-        hand_geometry_dst = os.path.join(WORKING_DIR, "cfg", "hand_geometry.cfg")
-        if not os.path.exists(hand_geometry_dst):
-            with open(hand_geometry_src, 'r') as src, open(hand_geometry_dst, 'w') as dst:
-                dst.write(src.read())
-            logger.debug("Copied hand geometry config to {0}".format(hand_geometry_dst))
-            
-        # Copy image geometry config if needed
-        img_geometry_src = os.path.join(CONFIG_DIR, "image_geometry_15channels.cfg")
-        img_geometry_dst = os.path.join(WORKING_DIR, "cfg", "image_geometry_15channels.cfg")
-        if not os.path.exists(img_geometry_dst):
-            with open(img_geometry_src, 'r') as src, open(img_geometry_dst, 'w') as dst:
-                dst.write(src.read())
-            logger.debug("Copied image geometry config to {0}".format(img_geometry_dst))
-    except Exception as e:
-        logger.error("Error copying config files: {0}".format(str(e)))
+# Global variables
+last_grasp_config_list = None
+grasp_result_received = False
 
-def parse_gpd_output(stdout_text):
-    """Parse the text output from GPD into a structured format."""
-    # Initialize result structures
-    tf_matrices = []
-    widths = []
-    scores = []
+# ROS callback for grasp configurations
+def grasp_callback(grasp_config_list):
+    global last_grasp_config_list, grasp_result_received
+    print("Received grasp config list with {} grasps".format(len(grasp_config_list.grasps)))
+    last_grasp_config_list = grasp_config_list
+    grasp_result_received = True
+
+# Convert Open3D point cloud to ROS PointCloud2
+def o3d_to_ros_cloud(o3d_cloud, frame_id="base_link"):
+    points = np.asarray(o3d_cloud.points)
+    header = Header()
+    header.stamp = rospy.Time.now()
+    header.frame_id = frame_id
+    cloud_msg = pc2.create_cloud_xyz32(header, points)
+    return cloud_msg
+
+# Create CloudIndexed message for GPD
+def create_cloud_indexed(cloud_msg, indices=None):
+    # Create CloudSources
+    cloud_sources = CloudSources()
+    cloud_sources.cloud = cloud_msg
     
-    # Look for grasp information in the output
-    lines = stdout_text.strip().split('\n')
-    in_selected_grasps = False
+    # Set up camera source
+    cloud_sources.camera_source.resize(1)
+    cloud_sources.camera_source[0] = 0  # Single camera source
     
-    for line in lines:
-        line = line.strip()
-        
-        # Identify the selected grasps section
-        if "======== Selected grasps ========" in line:
-            in_selected_grasps = True
-            continue
-            
-        # End of grasps section
-        if in_selected_grasps and "======== RUNTIMES ========" in line:
-            break
-            
-        # Parse grasp scores
-        if in_selected_grasps and line.startswith("Grasp "):
-            parts = line.split(":")
-            if len(parts) == 2:
-                try:
-                    grasp_num = int(parts[0].replace("Grasp ", "").strip())
-                    score = float(parts[1].strip())
-                    scores.append(score)
-                    
-                    # Create a transform matrix with a slight offset to differentiate grasps
-                    # Rotation matrix is identity, position has small offsets
-                    x_offset = 0.01 * (grasp_num % 3)
-                    y_offset = 0.01 * (grasp_num // 3)
-                    tf_matrix = [
-                        [1.0, 0.0, 0.0, x_offset],
-                        [0.0, 1.0, 0.0, y_offset],
-                        [0.0, 0.0, 1.0, 0.1],
-                        [0.0, 0.0, 0.0, 1.0]
-                    ]
-                    tf_matrices.append(tf_matrix)
-                    
-                    # Estimate a reasonable width based on score
-                    # Just a placeholder - you'd ideally get this from GPD
-                    width = 0.05 + 0.03 * (score / 1000.0)  # Scale width based on score
-                    widths.append(width)
-                except ValueError:
-                    pass
+    # Set up view point (assuming (0,0,0) for simplicity)
+    cloud_sources.view_points.resize(1)
+    cloud_sources.view_points[0].x = 0
+    cloud_sources.view_points[0].y = 0
+    cloud_sources.view_points[0].z = 0
     
-    return {
-        "tf_matrices": tf_matrices,
-        "widths": widths,
-        "scores": scores
-    }
+    # Create CloudIndexed message
+    cloud_indexed = CloudIndexed()
+    cloud_indexed.cloud_sources = cloud_sources
+    
+    # If indices are provided, use them, otherwise use all points
+    if indices is not None:
+        cloud_indexed.indices = indices
+    
+    return cloud_indexed
 
 @app.route('/detect_grasps', methods=['POST'])
 def detect_grasps():
-    """API endpoint to detect grasps in a point cloud."""
-    logger.info("Received grasp detection request")
+    global grasp_result_received, last_grasp_config_list
     
-    # Check if a file was uploaded
-    if 'point_cloud' not in request.files:
-        logger.error("No point cloud file received")
+    # Reset grasp result flag
+    grasp_result_received = False
+    
+    # Check that a point cloud file was provided
+    if 'cloud' not in request.files:
         return jsonify({"error": "No point cloud file provided"}), 400
     
-    file = request.files['point_cloud']
-    logger.info("Received point cloud file: {0}".format(file.filename))
+    cloud_file = request.files['cloud']
+    print("Received point cloud file: {}".format(cloud_file.filename))
     
-    # Get parameters from request
-    visualization = request.form.get('visualization', 'false').lower() == 'true'
-    logger.info("Visualization enabled: {0}".format(visualization))
-    
-    rotation_resolution = request.form.get('rotation_resolution', '8')
-    top_n = request.form.get('top_n', '5')
-    n_best = request.form.get('n_best', '1')
-    
-    # Save the file to a temporary location
-    temp_file = tempfile.NamedTemporaryFile(prefix='input_cloud_', suffix='.pcd', delete=False)
+    # Save the file temporarily
+    temp_file = tempfile.NamedTemporaryFile(suffix='.ply', delete=False)
     temp_path = temp_file.name
     temp_file.close()
+    cloud_file.save(temp_path)
     
-    try:
-        # Save the uploaded file
-        file_content = file.read()
-        with open(temp_path, 'wb') as f:
-            f.write(file_content)
-        logger.debug("Point cloud saved to temporary file: {0}".format(temp_path))
-        logger.debug("File saved successfully. Size: {0} bytes".format(len(file_content)))
-        
-        # Prepare GPD command
-        logger.debug("Parameters: rotation_resolution={0}, top_n={1}, n_best={2}".format(
-            rotation_resolution, top_n, n_best))
-        command = [
-            os.path.join(WORKING_DIR, "detect_grasps"),
-            CONFIG_FILE,
-            temp_path
-        ]
-        command_str = " ".join(command)
-        logger.info("Executing command: {0}".format(command_str))
-        
-        # Run GPD detection
-        logger.debug("Starting subprocess")
-        logger.info("Running command in directory: {0}".format(WORKING_DIR))
-        logger.info("Starting grasp detection process...")
-        start_time = time.time()
-        
-        # In Python 3.5, text parameter isn't available, so we handle it differently
-        process = subprocess.Popen(
-            command, 
-            stdout=subprocess.PIPE, 
-            stderr=subprocess.PIPE,
-            cwd=WORKING_DIR
-        )
-        stdout_bytes, stderr_bytes = process.communicate()
-        stdout = stdout_bytes.decode('utf-8')
-        stderr = stderr_bytes.decode('utf-8')
-        
-        execution_time = time.time() - start_time
-        logger.info("Process completed in {0:.2f} seconds".format(execution_time))
-        
-        # Log output
-        logger.debug("Command stdout: {0}".format(stdout))
-        if stderr:
-            logger.warning("Command stderr: {0}".format(stderr))
-        
-        if process.returncode != 0:
-            logger.error("Command failed with exit code {0}".format(process.returncode))
-            return jsonify({"error": "Grasp detection failed", "details": stderr}), 500
-        
-        # Parse the GPD output
-        try:
-            result = parse_gpd_output(stdout)
-            return jsonify(result)
-        except Exception as e:
-            logger.error("JSON decode error: {0}".format(str(e)))
-            logger.error("Raw output: {0}".format(stdout))
-            return jsonify({"error": "Failed to parse GPD output"}), 500
-            
-    except Exception as e:
-        logger.error("Error during grasp detection: {0}".format(str(e)))
-        return jsonify({"error": str(e)}), 500
-    finally:
-        # Clean up temporary file
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
-            logger.debug("Removed temporary file: {0}".format(temp_path))
-
-@app.route('/health', methods=['GET'])
-def health_check():
-    """Simple health check endpoint."""
-    return jsonify({"status": "healthy"})
-
-if __name__ == '__main__':
-    # Copy required config files first
-    copy_config_files()
+    # Load the point cloud
+    cloud = o3d.io.read_point_cloud(temp_path)
+    print("Loaded point cloud with {} points".format(len(cloud.points)))
     
-    # Log info
-    logger.info("Config file path: {0}".format(CONFIG_FILE))
-    logger.info("Starting Flask server on port 5000")
+    # If indices were provided, parse them
+    indices = None
+    if 'indices' in request.form:
+        indices = list(map(int, request.form['indices'].split(',')))
+        print("Using {} sample indices".format(len(indices)))
+    
+    # Convert to ROS message
+    cloud_msg = o3d_to_ros_cloud(cloud)
+    
+    # Create CloudIndexed message
+    cloud_indexed = create_cloud_indexed(cloud_msg, indices)
+    
+    # Publish cloud for processing
+    print("Publishing cloud for grasp detection")
+    cloud_pub.publish(cloud_indexed)
+    
+    # Wait for results
+    timeout = int(request.form.get('timeout', 30))
+    start_time = time.time()
+    
+    while not grasp_result_received and time.time() - start_time < timeout:
+        time.sleep(0.1)
+    
+    # Clean up temporary file
+    if os.path.exists(temp_path):
+        os.remove(temp_path)
+    
+    if not grasp_result_received:
+        return jsonify({"error": "Timeout waiting for grasp detection"}), 408
+    
+    # Process results
+    grasps_list = []
+    for grasp in last_grasp_config_list.grasps:
+        grasp_data = {
+            "position": {
+                "x": grasp.position.x,
+                "y": grasp.position.y,
+                "z": grasp.position.z
+            },
+            "orientation": {
+                "x": grasp.approach.x,
+                "y": grasp.approach.y,
+                "z": grasp.approach.z
+            },
+            "width": grasp.width.data,
+            "score": grasp.score.data
+        }
+        grasps_list.append(grasp_data)
+    
+    # Return results
+    return jsonify({
+        "grasps": grasps_list,
+        "count": len(grasps_list)
+    })
+
+if __name__ == "__main__":
+
+    # Initialize ROS node
+    print("Initializing ROS node")
+    rospy.init_node('gpd_mvp_server', anonymous=True)
+    
+    # Create publishers and subscribers
+    print("Setting up ROS publishers and subscribers")
+    cloud_pub = rospy.Publisher('/cloud_indexed', CloudIndexed, queue_size=1)
+    grasp_sub = rospy.Subscriber('/detect_grasps/clustered_grasps', 
+                                    GraspConfigList, grasp_callback)
+    
+    # Give ROS time to set up connections
+    print("Waiting for ROS connections")
+    time.sleep(2)
     
     # Start Flask server
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    print("Starting server on port 5000")
+    app.run(host='0.0.0.0', port=5000,debug=True)
+        

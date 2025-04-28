@@ -158,4 +158,4 @@ WORKDIR /opt/gpd/build
 #./detect_grasps ../cfg/eigen_params.cfg ../tutorials/krylon.pcd
 # Default command to run bash or app.py
 #CMD ["bash", "-c", "export LIBGL_ALWAYS_SOFTWARE=1; Xvfb :99 -ac -screen 0 1024x768x24 > /dev/null 2>&1 & cd /opt/gpd/build && cmake .. && make -j && python3 /workspace/app.py"]
-CMD ["bash", "-c", "Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 & cd /opt/gpd/build && cmake .. && make -j && python3 /workspace/app.py"]
+CMD ["bash", "-c", "Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 & source /opt/ros/kinetic/setup.bash && source /opt/catkin_ws/devel/setup.bash && roslaunch gpd_ros detect_grasps.launch & python3 /workspace/app_ros.py"]
