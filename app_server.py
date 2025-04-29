@@ -115,9 +115,10 @@ if has_flask:
             )
             
             # Convert numpy arrays to lists for JSON serialization
+            # Use list comprehension instead of tolist() for Python 2 compatibility
             result = {
                 'tf_matrices': [matrix.tolist() for matrix in tf_matrices],
-                'widths': widths.tolist(),
+                'widths': widths.tolist() if len(widths) > 0 else [],
                 'scores': scores.tolist() if len(scores) > 0 else []
             }
             
@@ -138,7 +139,7 @@ if has_flask:
     @app.route('/', methods=['GET'])
     def index():
         """Simple web interface for testing."""
-        return """
+        html_content = '''
         <html>
         <head>
             <title>GPD Grasp Detection</title>
@@ -154,7 +155,7 @@ if has_flask:
         </head>
         <body>
             <h1>GPD Grasp Detection</h1>
-            <form id="grasp-form" enctype="multipart/form-data">
+            <form id="grasp-form" enctype="multipart/form-data" method="post" action="/predict">
                 <label for="item-cloud">Item Point Cloud (PCD file):</label>
                 <input type="file" id="item-cloud" name="item_cloud" accept=".pcd">
                 
@@ -176,34 +177,44 @@ if has_flask:
             <div id="result"></div>
             
             <script>
+                // Simple form submission with fetch API but with fallback for older browsers
                 document.getElementById('grasp-form').addEventListener('submit', function(e) {
                     e.preventDefault();
                     
-                    const resultDiv = document.getElementById('result');
+                    var resultDiv = document.getElementById('result');
                     resultDiv.textContent = 'Processing... Please wait.';
                     
-                    const formData = new FormData(this);
+                    var formData = new FormData(this);
                     
-                    fetch('/predict', {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            resultDiv.textContent = 'Error: ' + data.error;
-                        } else {
-                            resultDiv.textContent = JSON.stringify(data, null, 2);
-                        }
-                    })
-                    .catch(error => {
-                        resultDiv.textContent = 'Error: ' + error.message;
-                    });
+                    // Check if fetch API is available
+                    if (window.fetch) {
+                        fetch('/predict', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(function(response) {
+                            return response.json();
+                        })
+                        .then(function(data) {
+                            if (data.error) {
+                                resultDiv.textContent = 'Error: ' + data.error;
+                            } else {
+                                resultDiv.textContent = JSON.stringify(data, null, 2);
+                            }
+                        })
+                        .catch(function(error) {
+                            resultDiv.textContent = 'Error: ' + error.message;
+                        });
+                    } else {
+                        // Fallback for older browsers - just submit the form normally
+                        this.submit();
+                    }
                 });
             </script>
         </body>
         </html>
-        """
+        '''
+        return html_content
 
 def main():
     """Main function to start the Flask server."""
@@ -218,7 +229,19 @@ def main():
     args = parser.parse_args()
     
     print("Starting GPD Flask server on {}:{}".format(args.host, args.port))
-    app.run(host=args.host, port=args.port, debug=args.debug)
+    
+    # Check if we're in Python 2 or 3 and use appropriate API
+    import sys
+    if sys.version_info[0] >= 3:
+        app.run(host=args.host, port=args.port, debug=args.debug)
+    else:
+        # Python 2 compatibility - some older Flask versions have different API
+        try:
+            app.run(host=args.host, port=args.port, debug=args.debug)
+        except TypeError:
+            # Fall back to older Flask API without named arguments
+            app.run(args.host, args.port, args.debug)
+    
     return 0
 
 if __name__ == "__main__":

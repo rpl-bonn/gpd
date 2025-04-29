@@ -2,8 +2,8 @@
 # Run GPD Docker with app.py and ROS
 
 # Define variables
-IMAGE_NAME="gpd_ros:latest"  # Replace with your actual Docker image name
-CONTAINER_NAME="gpd_ros_container"
+IMAGE_NAME="gpd"  # Replace with your actual Docker image name
+CONTAINER_NAME="gpd"
 GPD_DIR=$(dirname $(readlink -f "$0"))  # Directory containing GPD files
 
 # Check if the Docker image exists

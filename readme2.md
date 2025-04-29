@@ -1,3 +1,14 @@
+1. use run_docker_new.sh
+
+# Basic usage
+./gpd_external_client.py --item item_cloud.pcd --env env_cloud.pcd
+
+# With visualization (if Open3D is installed)
+./gpd_external_client.py --item item_cloud.pcd --env env_cloud.pcd --vis
+
+# Using the example script that matches the repo pattern
+./gpd_example_match_repo.py --item item_cloud.pcd --env env_cloud.pcd --vis
+
 # Issue on installation on Ubuntu 18.04, remove -O3 compiler optimization flag in CMakeLists.txt of gpd and gpd_ros 
 https://github.com/atenpas/gpd/issues/88#issuecomment-610466113
 
