@@ -157,7 +157,7 @@ def _predict(
     # Save point clouds to temporary files
     logger.info("Saving item cloud to {0}".format(item_file))
     if not _save_point_cloud_to_file(item_cloud, item_file):
-        logger.error("Failed to save item cloud")
+        logger.error("Failed to save item cloud. App,py")
         return np.array([]), np.array([]), np.array([])
     
     logger.info("Saving environment cloud to {0}".format(env_file))
@@ -205,7 +205,7 @@ def _predict(
     logger.info("Running GPD service to detect grasps")
     
     # Prepare the command with adjusted parameters
-    cmd = ["python", "/home/user/azirar/docker_containers/grasp_pose_detection/gpd/run_ros_serv.py"]
+    cmd = ["python", "/workspace/run_ros_serv.py"]
     
     try:
         start_time = time.time()

@@ -14,13 +14,20 @@ import tempfile
 import argparse
 from io import BytesIO
 
+
 # Try to import PCL for point cloud handling
 try:
     import pcl
 except ImportError:
-    print("PCL Python bindings not found. Will use placeholder point clouds.")
+    print("PCL Python bindings not found. Will try Open3D as fallback.")
     pcl = None
-
+    # Try to import Open3D as fallback
+    try:
+        import open3d as o3d
+        print("Open3D found, will use as fallback for point cloud handling.")
+        has_o3d = True
+    except ImportError:
+        raise ImportError("Neither PCL nor Open3D found. Cannot handle point clouds.")
 # Import app.py for the grasp prediction functions
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from app import PointCloud, Config, Logger, predict_full_grasp

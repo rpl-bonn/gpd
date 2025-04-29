@@ -40,13 +40,13 @@ start_flask_server() {
     pip install flask || {
       echo "Could not install Flask. The server will be started without it."
       # Start without Flask
-      python app.py &
+      python2 app.py &
       return
     }
   }
 
   # Start Flask server
-  python app_server.py --host 0.0.0.0 --port 5000 &
+  python2 app_server.py --host 0.0.0.0 --port 5000 &
   SERVER_PID=$!
   echo "Flask server started with PID $SERVER_PID"
 }

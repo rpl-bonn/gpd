@@ -18,12 +18,9 @@ docker run --gpus all -it -p 5000:5000 \
            cd .. ; \
            cp /workspace/gpd_ros/launch/ur5.launch opt/catkin_ws/src/gpd_ros/launch/ur5.launch; \
            sleep 2; \
-           cd /opt/catkin_ws && source devel/setup.bash; \\
+           cd /opt/catkin_ws && source devel/setup.bash; \
            # start the grasp-detection node
-           roslaunch gpd_ros ur5.launch & \
            sleep 3; \
            cd /workspace; \
-           python3 -m pip install flask numpy rospkg rospy; \
-           python3 -m pip install open3d==0.8.0; \
-           # Run our Flask server
-           python3 app_server.py --host 0.0.0.0 --port 5000"
+           bash install_run.sh; \
+           bash start_gpd_services.sh"
