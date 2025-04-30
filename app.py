@@ -146,7 +146,6 @@ def _predict(
     
     # Create temporary directory for files
     temp_dir = tempfile.mkdtemp()
-    # temp_dir = "/workspace"  # For testing purposes, use a fixed directory
     item_file = os.path.join(temp_dir, "item_cloud.pcd")
     env_file = os.path.join(temp_dir, "env_cloud.pcd")
     output_file = os.path.join(temp_dir, "detected_grasps.json")
