@@ -191,55 +191,51 @@ def _predict(
     # Prepare the command with adjusted parameters
     cmd = ["python", "/workspace/run_ros_serv.py"]
     
-    try:
-        start_time = time.time()
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    start_time = time.time()
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    
+    # Wait for the process with timeout
+    wait_time = 0
+    check_interval = 1.0
+    while process.poll() is None and wait_time < timeout:
+        time.sleep(check_interval)
+        wait_time += check_interval
         
-        # Wait for the process with timeout
-        wait_time = 0
-        check_interval = 1.0
-        while process.poll() is None and wait_time < timeout:
-            time.sleep(check_interval)
-            wait_time += check_interval
-            
-            # Check if output file exists and has content
-            if os.path.exists(workspace_output_path):
-                try:
-                    with open(workspace_output_path, 'r') as f:
-                        if json.load(f):  # If valid JSON and not empty
-                            logger.info("Grasp detection completed")
-                            break
-                except ValueError:
-                    # File exists but is not valid JSON yet
-                    pass
-        
-        # Check if process timed out
-        if wait_time >= timeout:
-            logger.warning("GPD process timed out after {0} seconds".format(timeout))
-            process.terminate()
-            return np.array([]), np.array([]), np.array([])
-        
-        # Get process output
-        stdout, stderr = process.communicate()
-        
-        if process.returncode != 0:
-            logger.error("GPD process failed with return code {0}".format(process.returncode))
-            logger.error("Stderr: {0}".format(stderr.decode('utf-8')))
-            return np.array([]), np.array([]), np.array([])
-        
-        execution_time = time.time() - start_time
-        logger.info("GPD completed in {0:.2f} seconds".format(execution_time))
-        
-        # Read output and parse grasps
+        # Check if output file exists and has content
         if os.path.exists(workspace_output_path):
-            return _read_grasp_file(workspace_output_path, n_best)
-        else:
-            logger.error("Output file not found: {0}".format(workspace_output_path))
-            return np.array([]), np.array([]), np.array([])
-            
-    except Exception as e:
-        logger.error("Error running GPD: {0}".format(e))
+            try:
+                with open(workspace_output_path, 'r') as f:
+                    if json.load(f):  # If valid JSON and not empty
+                        logger.info("Grasp detection completed")
+                        break
+            except ValueError:
+                # File exists but is not valid JSON yet
+                pass
+    
+    # Check if process timed out
+    if wait_time >= timeout:
+        logger.warning("GPD process timed out after {0} seconds".format(timeout))
+        process.terminate()
         return np.array([]), np.array([]), np.array([])
+    
+    # Get process output
+    stdout, stderr = process.communicate()
+    
+    if process.returncode != 0:
+        logger.error("GPD process failed with return code {0}".format(process.returncode))
+        logger.error("Stderr: {0}".format(stderr.decode('utf-8')))
+        return np.array([]), np.array([]), np.array([])
+    
+    execution_time = time.time() - start_time
+    logger.info("GPD completed in {0:.2f} seconds".format(execution_time))
+    
+    # Read output and parse grasps
+    if os.path.exists(workspace_output_path):
+        return _read_grasp_file(workspace_output_path, n_best)
+    else:
+        logger.error("Output file not found: {0}".format(workspace_output_path))
+        return np.array([]), np.array([]), np.array([])
+            
 
 def predict_full_grasp(
     item_cloud,
