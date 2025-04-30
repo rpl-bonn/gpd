@@ -202,15 +202,11 @@ def _predict(
         
         # Check if output file exists and has content
         if os.path.exists(workspace_output_path):
-            try:
-                with open(workspace_output_path, 'r') as f:
-                    if json.load(f):  # If valid JSON and not empty
-                        logger.info("Grasp detection completed")
-                        break
-            except ValueError:
-                # File exists but is not valid JSON yet
-                pass
-    
+            with open(workspace_output_path, 'r') as f:
+                if json.load(f):  # If valid JSON and not empty
+                    logger.info("Grasp detection completed")
+                    break
+
     # Check if process timed out
     if wait_time >= timeout:
         logger.warning("GPD process timed out after {0} seconds".format(timeout))
@@ -230,11 +226,15 @@ def _predict(
     
     # Read output and parse grasps
     if os.path.exists(workspace_output_path):
-        return _read_grasp_file(workspace_output_path, n_best)
+        results = _read_grasp_file(workspace_output_path, n_best)
+        # Clean up temporary files
+        os.remove(workspace_item_path)
+        os.remove(workspace_env_path)
+        os.remove(workspace_output_path)
+        os.rmdir(temp_dir)
+        return results
     else:
-        logger.error("Output file not found: {0}".format(workspace_output_path))
-        return np.array([]), np.array([]), np.array([])
-            
+        raise IOError("Output file not found: {0}".format(workspace_output_path))            
 
 def predict_full_grasp(
     item_cloud,
@@ -291,6 +291,7 @@ def predict_full_grasp(
         return np.empty((0, 4, 4)), np.empty(0), np.empty(0)
     
     logger.info("Found {0} valid grasps".format(len(tf_matrices)))
+
     return tf_matrices, widths, scores
 
 if __name__ == "__main__":
