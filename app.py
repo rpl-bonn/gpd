@@ -14,6 +14,8 @@ import subprocess
 import numpy as np
 import logging
 
+import shutil
+
 # Python 2 compatibility - typing module not available
 # Remove the type annotations when running the code
 
@@ -148,7 +150,7 @@ def _predict(
     temp_dir = tempfile.mkdtemp()
     item_file = os.path.join(temp_dir, "item_cloud.pcd")
     env_file = os.path.join(temp_dir, "env_cloud.pcd")
-    output_file = os.path.join(temp_dir, "detected_grasps.json")
+    # output_file = os.path.join(temp_dir, "detected_grasps.json")
     
     # Save point clouds to temporary files
     logger.info("Saving item cloud to {0}".format(item_file))
@@ -169,13 +171,58 @@ def _predict(
     workspace_output_path = os.path.join(workspace_dir, "detected_grasps.json")
     
     # Create symlinks or copy files to workspace
-    if os.path.exists(workspace_item_path):
-        os.unlink(workspace_item_path)
-    if os.path.exists(workspace_env_path):
-        os.unlink(workspace_env_path)
+    # if os.path.exists(workspace_item_path):
+    #     print("Removing existing symlink: {0}".format(workspace_item_path))
+    #     os.unlink(workspace_item_path)
+    # if os.path.exists(workspace_env_path):
+    #     print("Removing existing symlink: {0}".format(workspace_env_path))
+    #     os.unlink(workspace_env_path)
     
-    os.symlink(item_file, workspace_item_path)
-    os.symlink(env_file, workspace_env_path)
+    # os.symlink(item_file, workspace_item_path)
+    # os.symlink(env_file, workspace_env_path)
+
+    #do not use symlinks, directly copy files
+    #check if the files exist
+    if os.path.exists(workspace_item_path):
+        #check igf it may is a folder.
+        if os.path.isdir(workspace_item_path):
+            logger.warning("Removing existing folder: {0}".format(workspace_item_path))
+            #delete even if it is not empty
+            shutil.rmtree(workspace_item_path, ignore_errors=True)
+        else:
+            #check if it is a file
+            if os.path.isfile(workspace_item_path):
+                logger.warning("Removing existing file: {0}".format(workspace_item_path))
+                os.remove(workspace_item_path)
+            else:
+                logger.warning("Removing existing file: {0}".format(workspace_item_path))
+                os.remove(workspace_item_path)
+
+    if os.path.exists(workspace_env_path):
+        #check if it may is a folder
+        if os.path.isdir(workspace_env_path):
+            logger.warning("Removing existing folder: {0}".format(workspace_env_path))
+            shutil.rmtree(workspace_env_path, ignore_errors=True)
+        else:
+            #check if it is a file
+            if os.path.isfile(workspace_env_path):
+                logger.warning("Removing existing file: {0}".format(workspace_env_path))
+                os.remove(workspace_env_path)
+            else:
+                logger.warning("Removing existing file: {0}".format(workspace_env_path))
+                os.remove(workspace_env_path)
+    if os.path.exists(workspace_output_path):
+        logger.warning("Removing existing file: {0}".format(workspace_output_path))
+        os.remove(workspace_output_path)
+    # Copy files to workspace
+    logger.info("Copying files to workspace")
+    print("Item file: {0}".format(item_file))
+    print("Env file: {0}".format(env_file))
+    print("Workspace item path: {0}".format(workspace_item_path))
+    print("Workspace env path: {0}".format(workspace_env_path))
+
+    shutil.copy2(item_file, workspace_item_path)
+    shutil.copy2(env_file, workspace_env_path)
     # except OSError:
     #     # If symlinks not supported, copy files
     #     import shutil
@@ -231,7 +278,8 @@ def _predict(
         os.remove(workspace_item_path)
         os.remove(workspace_env_path)
         os.remove(workspace_output_path)
-        os.rmdir(temp_dir)
+        #remove dir even if not empty
+        shutil.rmtree(temp_dir, ignore_errors=True)
         return results
     else:
         raise IOError("Output file not found: {0}".format(workspace_output_path))            
@@ -270,7 +318,8 @@ def predict_full_grasp(
     
     # Define search limits (can be adjusted based on config)
     limits = np.array([[-1.0, 1.0], [-1.0, 1.0], [-1.0, 1.0]])
-    
+    # limits = np.array([[-10.0, 10.0], [-10.0, 10.0], [-10.0, 10.0]])
+
     # Call the prediction function
     tf_matrices, widths, scores = _predict(
         item_cloud=item_cloud,

@@ -99,14 +99,14 @@ if has_flask:
         env_cloud = PointCloud(np.array(env_cloud_pcl.to_array()))
         
         # Create a simple configuration
-        config = Config(
-            # Add any configuration parameters here
-            gripper_width=float(request.form.get('gripper_width', 0.08)),
-            finger_depth=float(request.form.get('finger_depth', 0.05)),
-            hand_depth=float(request.form.get('hand_depth', 0.10)),
-            object_min_height=float(request.form.get('object_min_height', 0.005)),
-        )
-        
+        # config = Config(
+        #     # Add any configuration parameters here
+        #     gripper_width=float(request.form.get('gripper_width', 0.08)),
+        #     finger_depth=float(request.form.get('finger_depth', 0.05)),
+        #     hand_depth=float(request.form.get('hand_depth', 0.10)),
+        #     object_min_height=float(request.form.get('object_min_height', 0.005)),
+        # )
+        config = None
         # Call the predict_full_grasp function
         logger.info("Calling predict_full_grasp")
         tf_matrices, widths, scores = predict_full_grasp(
