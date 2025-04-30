@@ -84,63 +84,52 @@ if has_flask:
         item_temp = tempfile.NamedTemporaryFile(delete=False, suffix='.pcd')
         env_temp = tempfile.NamedTemporaryFile(delete=False, suffix='.pcd')
         
-        try:
-            item_file.save(item_temp.name)
-            env_file.save(env_temp.name)
+        item_file.save(item_temp.name)
+        env_file.save(env_temp.name)
+        
+        # Load point clouds with PCL
+        if pcl is None:
+            return jsonify({'error': 'PCL module not available'}), 500
+        
+        item_cloud_pcl = pcl.load(item_temp.name)
+        env_cloud_pcl = pcl.load(env_temp.name)
+        
+        # Convert to our PointCloud type
+        item_cloud = PointCloud(np.array(item_cloud_pcl.to_array()))
+        env_cloud = PointCloud(np.array(env_cloud_pcl.to_array()))
+        
+        # Create a simple configuration
+        config = Config(
+            # Add any configuration parameters here
+            gripper_width=float(request.form.get('gripper_width', 0.08)),
+            finger_depth=float(request.form.get('finger_depth', 0.05)),
+            hand_depth=float(request.form.get('hand_depth', 0.10)),
+            object_min_height=float(request.form.get('object_min_height', 0.005)),
+        )
+        
+        # Call the predict_full_grasp function
+        logger.info("Calling predict_full_grasp")
+        tf_matrices, widths, scores = predict_full_grasp(
+            item_cloud=item_cloud,
+            env_cloud=env_cloud,
+            config=config,
+            logger=logger,
+            rotation_resolution=rotation_resolution,
+            top_n=top_n,
+            n_best=n_best,
+            vis_block=False
+        )
+        
+        # Convert numpy arrays to lists for JSON serialization
+        # Use list comprehension instead of tolist() for Python 2 compatibility
+        result = {
+            'tf_matrices': [matrix.tolist() for matrix in tf_matrices],
+            'widths': widths.tolist() if len(widths) > 0 else [],
+            'scores': scores.tolist() if len(scores) > 0 else []
+        }
+        
+        return jsonify(result)
             
-            # Load point clouds with PCL
-            if pcl is None:
-                return jsonify({'error': 'PCL module not available'}), 500
-            
-            item_cloud_pcl = pcl.load(item_temp.name)
-            env_cloud_pcl = pcl.load(env_temp.name)
-            
-            # Convert to our PointCloud type
-            item_cloud = PointCloud(np.array(item_cloud_pcl.to_array()))
-            env_cloud = PointCloud(np.array(env_cloud_pcl.to_array()))
-            
-            # Create a simple configuration
-            config = Config(
-                # Add any configuration parameters here
-                gripper_width=float(request.form.get('gripper_width', 0.08)),
-                finger_depth=float(request.form.get('finger_depth', 0.05)),
-                hand_depth=float(request.form.get('hand_depth', 0.10)),
-                object_min_height=float(request.form.get('object_min_height', 0.005)),
-            )
-            
-            # Call the predict_full_grasp function
-            logger.info("Calling predict_full_grasp")
-            tf_matrices, widths, scores = predict_full_grasp(
-                item_cloud=item_cloud,
-                env_cloud=env_cloud,
-                config=config,
-                logger=logger,
-                rotation_resolution=rotation_resolution,
-                top_n=top_n,
-                n_best=n_best,
-                vis_block=False
-            )
-            
-            # Convert numpy arrays to lists for JSON serialization
-            # Use list comprehension instead of tolist() for Python 2 compatibility
-            result = {
-                'tf_matrices': [matrix.tolist() for matrix in tf_matrices],
-                'widths': widths.tolist() if len(widths) > 0 else [],
-                'scores': scores.tolist() if len(scores) > 0 else []
-            }
-            
-            return jsonify(result)
-            
-        except Exception as e:
-            logger.error("Error processing request: {}".format(e))
-            return jsonify({'error': str(e)}), 500
-        finally:
-            # Clean up temporary files
-            try:
-                os.unlink(item_temp.name)
-                os.unlink(env_temp.name)
-            except:
-                pass
     
     # Add a simple web interface for testing
     @app.route('/', methods=['GET'])

@@ -66,13 +66,9 @@ class Logger:
 
 def _save_point_cloud_to_file(cloud, filepath):
     """Save a point cloud to a file in PCD format."""
-    try:
-        pcl_cloud = cloud.to_pcl()
-        pcl.save(pcl_cloud, filepath, binary=False)
-        return True
-    except Exception as e:
-        print("Failed to save point cloud: {0}".format(e))
-        return False
+    pcl_cloud = cloud.to_pcl()
+    pcl.save(pcl_cloud, filepath, binary=False)
+    return True
 
 def _read_grasp_file(filepath, n_best=1):
     """Read grasp data from a JSON file."""
@@ -168,40 +164,27 @@ def _predict(
     
     # Create symlinks for GPD to find the files
     workspace_dir = "/workspace"
-    if not os.path.exists(workspace_dir):
-        try:
-            os.makedirs(workspace_dir)
-        except OSError:
-            # Directory might have been created by another process
-            if not os.path.isdir(workspace_dir):
-                raise
     
     workspace_item_path = os.path.join(workspace_dir, "item_cloud.pcd")
     workspace_env_path = os.path.join(workspace_dir, "env_cloud.pcd")
     workspace_output_path = os.path.join(workspace_dir, "detected_grasps.json")
     
     # Create symlinks or copy files to workspace
-    try:
-        if os.path.exists(workspace_item_path):
-            os.unlink(workspace_item_path)
-        if os.path.exists(workspace_env_path):
-            os.unlink(workspace_env_path)
-        
-        # Either create symlinks or copy files
-        try:
-            os.symlink(item_file, workspace_item_path)
-            os.symlink(env_file, workspace_env_path)
-        except OSError:
-            # If symlinks not supported, copy files
-            import shutil
-            shutil.copy2(item_file, workspace_item_path)
-            shutil.copy2(env_file, workspace_env_path)
-            
-        logger.info("Files prepared for GPD")
-    except Exception as e:
-        logger.error("Error linking files: {0}".format(e))
-        return np.array([]), np.array([]), np.array([])
+    if os.path.exists(workspace_item_path):
+        os.unlink(workspace_item_path)
+    if os.path.exists(workspace_env_path):
+        os.unlink(workspace_env_path)
     
+    os.symlink(item_file, workspace_item_path)
+    os.symlink(env_file, workspace_env_path)
+    # except OSError:
+    #     # If symlinks not supported, copy files
+    #     import shutil
+    #     shutil.copy2(item_file, workspace_item_path)
+    #     shutil.copy2(env_file, workspace_env_path)
+        
+    logger.info("Files prepared for GPD")
+
     # Run the GPD service
     logger.info("Running GPD service to detect grasps")
     
